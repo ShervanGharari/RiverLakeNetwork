@@ -18,6 +18,9 @@ def FixHydroLakesForMerit (lake_shp):
     lake_to_remove = [
                         1262598, # PFAF 24
                         50, 832978, 106815, 63, 1007254, 6314, 6108, 67331, 732781, 753291,  # PFAF 72
+                        851, 847, 9585, # PFAF 74
+                        9759, # PFAF 75
+                        115503, # PFAF 76
                         213, 206,  # PFAF 82
                     ]
 
@@ -85,6 +88,13 @@ def FixHydroLakesForMerit (lake_shp):
 # Hylak_ID 6314 (at -64.78994, 54.75624) connects to two different river systems; either remove or fix the shape of the lake
 # Hylak_ID 6108 (at -62.92842, 55.16738) has two outlet; removed or split into two lakes
 # the rest are next to open sea or ocean lakes
+# PFAF 74: 851, 847, 9585
+# next to open sea or ocean lakes
+# PFAF 75: 9759
+# next to open sea or ocean lakes
+# PFAF 76: 115503
+# TODO 860 is considered with outlet; it should be changed to endorehic with segment correction 76004286, 76003475, 76003492
+# PFAF 77: seems ok!
 # PFAF 78: seems ok!
 # PFAF 82: 213, 206
 # next to open sea or ocean lakes
