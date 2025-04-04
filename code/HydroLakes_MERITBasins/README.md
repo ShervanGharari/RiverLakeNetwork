@@ -28,3 +28,13 @@ Make sure you have the following Python packages installed:
 ```bash
 pip install geopandas shapely pandas numpy matplotlib pyyaml networkx git+https://github.com/ShervanGharari/hydrant.git@dev
 ```
+
+---
+
+## 🛠️ Dependencies
+
+Make sure you have the following Python packages installed:
+
+```bash
+pip install geopandas shapely pandas numpy matplotlib pyyaml networkx git+https://github.com/ShervanGharari/hydrant.git@dev
+```

@@ -4,7 +4,7 @@ LakeFile: /Volumes/F:/hydrography/hydrolakes/HydroLAKES_polys_v10_shp/HydroLAKES
 # flag to burn lakes into the river network; Always set to True
 IncludeLakes: True
 
-MeritBasinsLocations:
+MERITBasinsPaths:
   # based on https://www.reachhydro.org/home/params/merit-basins
   # bugfixed files: MERIT-Basins hydrography (based on MERIT-Hydro v0.7/v1.0_bugfix1, minor bug fix for coastline pixels
   RivPath: /Users/shg096/Desktop/MERIT_Hydro/riv/                           # folder where the river segments are save, ending with /
