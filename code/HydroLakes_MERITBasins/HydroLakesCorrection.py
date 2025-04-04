@@ -21,7 +21,7 @@ def FixHydroLakesForMerit (lake_shp):
                         213, 206,  # PFAF 82
                     ]
 
-    # PFAF 72: 50, 832978, 106815, 63, 1007254, 6314, 6108
+    # PFAF 72: 50, 832978, 106815, 63, 1007254, 6314, 6108, 67331, 732781, 753291
     # PFAF 82: 213, 206
 
     ######
@@ -84,23 +84,7 @@ def FixHydroLakesForMerit (lake_shp):
 # PFAF 72: 50, 832978, 106815, 63, 1007254, 6314, 6108
 # Hylak_ID 6314 (at -64.78994, 54.75624) connects to two different river systems; either remove or fix the shape of the lake
 # Hylak_ID 6108 (at -62.92842, 55.16738) has two outlet; removed or split into two lakes
-# PFAF 78: seems ok!
 # the rest are next to open sea or ocean lakes
+# PFAF 78: seems ok!
 # PFAF 82: 213, 206
 # next to open sea or ocean lakes
-
-
-
-
-
-Segment ID: 72004185
-Number of lakes: 2
-Lake IDs: [67349 67331]
-----
-Segment ID: 72004354
-Number of lakes: 2
-Lake IDs: [732078 732781]
-----
-Segment ID: 72007070
-Number of lakes: 2
-Lake IDs: [753908 753291]
