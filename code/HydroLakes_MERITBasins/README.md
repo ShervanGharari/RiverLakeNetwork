@@ -31,10 +31,23 @@ pip install geopandas shapely pandas numpy matplotlib pyyaml networkx git+https:
 
 ---
 
-## 🛠️ Dependencies
+## 📁 Data Used in This Work
 
-Make sure you have the following Python packages installed:
+This project relies on the following datasets:
 
-```bash
-pip install geopandas shapely pandas numpy matplotlib pyyaml networkx git+https://github.com/ShervanGharari/hydrant.git@dev
-```
+### 1. MERIT-Derived Global River Flows (Lin et al., 2019)
+- **Description**: A global reconstruction of naturalized river flows over 2.94 million reaches using the MERIT hydrography.
+- **Citation**:  
+  Lin, P., Pan, M., Beck, H.E., Yang, Y., Yamazaki, D., Frasson, R., et al. (2019).  
+  *Global reconstruction of naturalized river flows at 2.94 million reaches*.  
+  *Water Resources Research*, 55(8), 6499–6516.  
+  https://doi.org/10.1029/2019WR025287  
+  > *Note: A bug-fixed version of this dataset was used in this work.*
+
+### 2. HydroLAKES (Version 1)
+- **Description**: A global database of lakes with information on their shoreline, volume, and other attributes.
+- **Citation**:  
+  Messager, M.L., Lehner, B., Grill, G., Nedeva, I., & Schmitt, O. (2016).  
+  *Estimating the volume and age of water stored in global lakes using a geo-statistical approach*.  
+  *Nature Communications*, 7, 13603.  
+  https://doi.org/10.1038/ncomms13603
