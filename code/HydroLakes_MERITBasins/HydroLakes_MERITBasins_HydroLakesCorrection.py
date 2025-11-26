@@ -27,19 +27,6 @@ def FixHydroLakesForMerit (lake_shp):
     # PFAF 72: 50, 832978, 106815, 63, 1007254, 6314, 6108, 67331, 732781, 753291
     # PFAF 82: 213, 206
 
-    ######
-    # Greate Lakes merging of Lake Huron and Michigan and removal
-    ######
-
-    # # manupulation of great lakes to make them resolvable (for HDMA)
-    # box = Polygon([[-84.3885, 46.5672],[-84.0244,46.5672],[-84.0244,46.2540],[-84.3885,46.2540]])
-    # box = gpd.GeoDataFrame(pd.DataFrame(['p1'], columns = ['geometry']),
-    #                        crs = {'init':'epsg:4326'},
-    #                        geometry = [box])
-    # index_8 = lake_shp[lake_shp['Hylak_id'] == 8].index # lake Huron
-    # temp = gpd.overlay(lake_shp.loc[index_8], box, how = 'difference') # remove the box from lake Huron
-    # shp_sub['geometry'].loc[index_8] = temp['geometry'].iloc[0] # update lake Huron in shp_sub
-
     # Select Lake Michigan (6) and Lake Huron (8)
     shp_slice = lake_shp[lake_shp['Hylak_id'].isin([6, 8])].copy()
     

@@ -1,5 +1,5 @@
-DomainFolder: /Users/shg096/Desktop/CanadaAonOut/domain/              # folder where the domain will be saved, ending with /
-TempFolder: /Users/shg096/Desktop/CanadaAonOut/Tempdomain/            # folder where the temporary domain will be saved, ending with /
+DomainFolder: /Users/shg096/Desktop/LakeRiverOut/domain/              # folder where the domain will be saved, ending with /
+TempFolder: /Users/shg096/Desktop/LakeRiverOut/Tempdomain/            # folder where the temporary domain will be saved, ending with /
 LakeFile: /Volumes/F:/hydrography/hydrolakes/HydroLAKES_polys_v10_shp/HydroLAKES_polys_v10_shp/HydroLAKES_polys_v10.shp # lake and reservoir shapefile; hydrolakes version v1.0
 # flag to burn lakes into the river network; Always set to True
 IncludeLakes: True
@@ -16,13 +16,13 @@ MERITBasinsPaths:
 
 pfafs:
   - '71'
-  - '72'
-  - '73'
-  - '74'
-  - '75'
-  - '76'
-  - '77'
-  - '78'
+  # - '72'
+  # - '73'
+  # - '74'
+  # - '75'
+  # - '76'
+  # - '77'
+  # - '78'
   # - '81'
   # - '82'
   # - '83'

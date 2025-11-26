@@ -1,8 +1,0 @@
-geopandas
-pandas
-numpy
-matplotlib
-shapely
-pyyaml
-networkx
-git+https://github.com/ShervanGharari/hydrant.git@dev
