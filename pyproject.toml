@@ -1,0 +1,34 @@
+[project]
+name = "riverlakenetwork"  # lowercase for PyPI
+version = "0.1.0"
+description = "Tools to integrate lakes and reservoirs into river network topologies."
+authors = [
+    { name="Shervan Gharari", email="youremail@example.com" }
+]
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.8"
+keywords = ["hydrology", "river network", "lakes", "reservoirs", "GIS", "geopandas"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+# Dependencies required to run the package
+dependencies = [
+    "geopandas>=0.13",
+    "pandas>=1.5",
+    "shapely>=2.0",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/ShervanGharari/RiverLakeNetwork"
+"Bug Tracker" = "https://github.com/ShervanGharari/RiverLakeNetwork/issues"
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
