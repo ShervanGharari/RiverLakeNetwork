@@ -50,58 +50,50 @@ class DataChecker:
             self.lake = self.lake.copy()
 
         # Run the fucntion
-        _check_riv_attr()
-        _check_cat_attr()
-        _check_lake_attr()
-        _check_COMIDs()
-        _check_area_units()
-        _check_crs(suppress=False)
-        _pass_unitarea()
+        self._check_riv_attr()
+        self._check_cat_attr()
+        self._check_lake_attr()
+        self._check_COMIDs()
+        self._check_area_units()
+        self._check_crs(suppress=False)
+        self._pass_unitarea()
 
+    # -------------------------------
+    # Specific dictionary checks
+    # -------------------------------
+    def _check_gdf_attr(self, gdf_name, dict_name, required_keys, geom_required=True):
+        gdf = getattr(self, gdf_name)
+        d = getattr(self, dict_name)
+        if gdf is None:
+            return
+        # Build rename map and check columns exist
+        rename_map = {}
+        for key in required_keys:
+            if key not in d:
+                raise ValueError(f"Missing required key in {dict_name}: '{key}'")
+            entry = d[key]
+            if entry is None or "col" not in entry:
+                raise ValueError(f"{dict_name}['{key}'] must be a dict with a 'col' key")
+            col_name = entry["col"]
+            if col_name not in gdf.columns:
+                raise ValueError(f"Column '{col_name}' specified for '{key}' not found in {gdf_name} GeoDataFrame")
+            rename_map[col_name] = key
+        if geom_required and "geometry" not in gdf.columns:
+            raise ValueError(f"{gdf_name} must have a 'geometry' column")
+        # Keep only columns in rename_map + geometry
+        keep_cols = list(rename_map.keys()) + (["geometry"] if geom_required else [])
+        gdf = gdf[keep_cols].rename(columns=rename_map)
+        setattr(self, gdf_name, gdf)
 
-
+    # Then your specific checks become one-liners:
     def _check_riv_attr(self):
-        if self.riv is not None:
-            required_keys = ["COMID", "NextDownCOMID", "length", "uparea", "uparea_unit", "geometry"]
-            for key in required_keys:
-                if key not in self.riv_dict:
-                    raise ValueError(f"Missing required key in riv_dict: '{key}'")
-                col_name = self.riv_dict[key]
-                if col_name is None:
-                    raise ValueError(f"riv_dict['{key}'] cannot be None, must specify column name in GeoDataFrame")
-                if col_name not in self.riv.columns:
-                    raise ValueError(f"Column '{col_name}' specified for '{key}' not found in rivers GeoDataFrame")
-                # Rename the column in GeoDataFrame to standard key
-                self.riv = self.riv.rename(columns={col_name: key})
+        self._check_gdf_attr("riv", "riv_dict", ["COMID", "NextDownCOMID", "length", "uparea"])
 
     def _check_cat_attr(self):
-        if self.cat is not None:
-                required_keys = ["COMID", "uparea_unit", "geometry"]
-                for key in required_keys:
-                    if key not in self.cat_dict:
-                        raise ValueError(f"Missing required key in cat_dict: '{key}'")
-                    col_name = self.cat_dict[key]
-                    if col_name is None:
-                        raise ValueError(f"cat_dict['{key}'] cannot be None, must specify column name in GeoDataFrame")
-                    if col_name not in self.cat.columns:
-                        raise ValueError(f"Column '{col_name}' specified for '{key}' not found in subbasins GeoDataFrame")
-                    # Rename the column in GeoDataFrame to standard key
-                    self.cat = self.cat.rename(columns={col_name: key})
-
+        self._check_gdf_attr("cat", "cat_dict", ["COMID", "unitarea"])
 
     def _check_lake_attr(self):
-        if self.lake is not None:
-            required_keys = ["LakeCOMID", "unitarea", "geometry"]
-            for key in required_keys:
-                if key not in self.lake_dict:
-                    raise ValueError(f"Missing required key in lake_dict: '{key}'")
-                col_name = self.lake_dict[key]
-                if col_name is None:
-                    raise ValueError(f"lake_dict['{key}'] cannot be None, must specify column name in GeoDataFrame")
-                if col_name not in self.lake.columns:
-                    raise ValueError(f"Column '{col_name}' specified for '{key}' not found in lakes GeoDataFrame")
-                # Rename the column in GeoDataFrame to standard key
-                self.lake = self.lake.rename(columns={col_name: key})
+        self._check_gdf_attr("lake", "lake_dict", ["LakeCOMID", "unitarea"])
 
     def _check_COMIDs(self):
         """
@@ -149,15 +141,18 @@ class DataChecker:
         if self.lake is None or self.lake_dict is None:
             print("No lakes provided; skipping lake area unit check.")
             return
-        # Get units and columns
-        cat_area_col = self.cat_dict.get("uparea")
-        cat_unit = self.cat_dict.get("uparea_unit")
-        lake_area_col = self.lake_dict.get("unitarea")
-        lake_unit = self.lake_dict.get("unitarea_unit", None)  # optional
-        if cat_area_col is None or cat_unit is None:
-            raise ValueError("cat_dict must have 'uparea' and 'uparea_unit' defined")
-        if lake_area_col is None or lake_unit is None:
-            raise ValueError("lake_dict must have 'unitarea' and 'unitarea_unit' defined")
+        # Extract column name and unit from cat_dict
+        cat_entry = self.cat_dict.get("unitarea")
+        if cat_entry is None or "col" not in cat_entry or "unit" not in cat_entry:
+            raise ValueError("cat_dict must have 'unitarea' with 'col' and 'unit'")
+        cat_area_col = cat_entry["col"]
+        cat_unit = cat_entry["unit"]
+        # Extract column name and unit from lake_dict
+        lake_entry = self.lake_dict.get("unitarea")
+        if lake_entry is None or "col" not in lake_entry or "unit" not in lake_entry:
+            raise ValueError("lake_dict must have 'unitarea' with 'col' and 'unit'")
+        lake_area_col = lake_entry["col"]
+        lake_unit = lake_entry["unit"]
         # Check if units differ
         if cat_unit != lake_unit:
             # Convert lake area to cat unit
@@ -165,7 +160,7 @@ class DataChecker:
             self.lake[lake_area_col] = self.lake[lake_area_col] * conversion
             print(f"Converted lake area from {lake_unit} to {cat_unit}")
             # Update lake_dict unit to match cat
-            self.lake_dict["unitarea_unit"] = cat_unit
+            self.lake_dict["unitarea"]["unit"] = cat_unit
         else:
             print(f"Subbasin and lake area units are consistent: {cat_unit}")
 
@@ -192,26 +187,21 @@ class DataChecker:
             If True, do not raise an error when CRS mismatch occurs; just print a warning.
         """
         crs_list = []
-
         if self.riv is not None:
             if self.riv.crs is None:
                 raise ValueError("Rivers GeoDataFrame has no CRS defined.")
             crs_list.append(("riv", self.riv.crs))
-
         if self.cat is not None:
             if self.cat.crs is None:
                 raise ValueError("Subbasins GeoDataFrame has no CRS defined.")
             crs_list.append(("cat", self.cat.crs))
-
         if self.lake is not None:
             if self.lake.crs is None:
                 raise ValueError("Lakes GeoDataFrame has no CRS defined.")
             crs_list.append(("lake", self.lake.crs))
-
         # Print CRS of each layer
         for name, crs in crs_list:
             print(f"{name} CRS: {crs}")
-
         # Check if all CRS are identical
         crs_values = [crs for _, crs in crs_list]
         if len(set(crs_values)) > 1:

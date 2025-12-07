@@ -43,54 +43,64 @@ class DataLoader:
         # Step 3: Summary
         self.summary()
 
+
     # -------------------------------
-    # Dictionary checks
+    # Specific dictionary checks
     # -------------------------------
+    def _validate_dict(self, name, dict_name, required_keys, unit_keys=None):
+        """Generic compact validator for riv_dict, cat_dict, lake_dict."""
+        gdf = self.config.get(name)
+        d = self.config.get(dict_name)
+        if gdf is None:
+            return
+        if d is None:
+            raise ValueError(f"{dict_name} must be provided if {name} is provided.")
+        # Check required keys exist
+        missing = [k for k in required_keys if k not in d]
+        if missing:
+            raise ValueError(f"{dict_name} is missing required keys: {missing}")
+        # Validate structure for each key
+        for key, entry in d.items():
+            if not isinstance(entry, dict) or "col" not in entry:
+                raise ValueError(f"{dict_name}['{key}'] must be a dict with at least 'col'.")
+            # If unit is required, validate it
+            if unit_keys and key in unit_keys:
+                if "unit" not in entry:
+                    raise ValueError(f"{dict_name}['{key}'] must include 'unit'.")
+                if entry["unit"] not in {"km2", "m2", "ha"}:
+                    raise ValueError(
+                        f"Invalid unit '{entry['unit']}' for {dict_name}['{key}'] "
+                        f"(allowed: km2, m2, ha)"
+                    )
+        return d
+
     def _check_riv_dict(self):
-        if "riv" in self.config and self.config["riv"] is not None:
-            if "riv_dict" not in self.config or self.config["riv_dict"] is None:
-                raise ValueError("riv_dict must be provided if riv is provided.")
-            required_keys = ["COMID", "NextDownCOMID", "length", "uparea", "uparea_unit"]
-            missing_keys = [k for k in required_keys if k not in self.config["riv_dict"]]
-            if missing_keys:
-                raise ValueError(f"riv_dict is missing required keys: {missing_keys}")
-            self.riv_dict = self.config["riv_dict"]
+        self.riv_dict = self._validate_dict(
+            name="riv",
+            dict_name="riv_dict",
+            required_keys=["COMID", "NextDownCOMID", "length", "uparea"],
+            unit_keys=["uparea"]         # only uparea needs a unit
+        )
 
     def _check_cat_dict(self):
-        if "cat" in self.config and self.config["cat"] is not None:
-            if "cat_dict" not in self.config or self.config["cat_dict"] is None:
-                raise ValueError("cat_dict must be provided if cat is provided.")
-            required_keys = ["COMID", "uparea_unit"]
-            missing_keys = [k for k in required_keys if k not in self.config["cat_dict"]]
-            if missing_keys:
-                raise ValueError(f"cat_dict is missing required keys: {missing_keys}")
-            self.cat_dict = self.config["cat_dict"]
+        self.cat_dict = self._validate_dict(
+            name="cat",
+            dict_name="cat_dict",
+            required_keys=["COMID", "unitarea"],
+            unit_keys=["unitarea"]       # only unitarea needs a unit
+        )
 
     def _check_lake_dict(self):
-        if "lake" in self.config and self.config["lake"] is not None:
-            if "lake_dict" not in self.config or self.config["lake_dict"] is None:
-                raise ValueError("lake_dict must be provided if lake is provided.")
-            required_keys = ["unitarea", "LakeCOMID"]
-            missing_keys = [k for k in required_keys if k not in self.config["lake_dict"]]
-            if missing_keys:
-                raise ValueError(f"lake_dict is missing required keys: {missing_keys}")
-            self.lake_dict = self.config["lake_dict"]
+        self.lake_dict = self._validate_dict(
+            name="lake",
+            dict_name="lake_dict",
+            required_keys=["LakeCOMID", "unitarea"],
+            unit_keys=["unitarea"]       # only unitarea needs a unit
+        )
 
     # -------------------------------
     # Loading GeoDataFrames
     # -------------------------------
-    def _load_riv(self):
-        if "riv" in self.config and self.config["riv"] is not None:
-            self.riv = self._load_layer(self.config["riv"])
-
-    def _load_cat(self):
-        if "cat" in self.config and self.config["cat"] is not None:
-            self.cat = self._load_layer(self.config["cat"])
-
-    def _load_lake(self):
-        if "lake" in self.config and self.config["lake"] is not None:
-            self.lake = self._load_layer(self.config["lake"])
-
     def _load_layer(self, layer):
         """Helper to load either a file path or a GeoDataFrame"""
         if isinstance(layer, (str, Path)):
@@ -102,6 +112,18 @@ class DataLoader:
             return layer.copy()
         else:
             raise TypeError("Layer must be a file path (str/Path) or a GeoDataFrame")
+
+    def _load_riv(self):
+        if "riv" in self.config and self.config["riv"] is not None:
+            self.riv = self._load_layer(self.config["riv"])
+
+    def _load_cat(self):
+        if "cat" in self.config and self.config["cat"] is not None:
+            self.cat = self._load_layer(self.config["cat"])
+
+    def _load_lake(self):
+        if "lake" in self.config and self.config["lake"] is not None:
+            self.lake = self._load_layer(self.config["lake"])
 
     # -------------------------------
     # Summary
