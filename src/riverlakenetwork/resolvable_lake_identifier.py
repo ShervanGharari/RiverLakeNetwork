@@ -26,6 +26,9 @@ class ResolvableLakes:
         lake_cleaned = self._remove_inbasin_lakes(cat, lake_subset)
         # --- Step 3: remove lakes that are not touching river starting or ending point ---
         lake_cleaned = self._keep_lakes_touching_river_endpoints(riv, lake_cleaned)
+
+        lake_cleaned = self._remove_lakes_touching_only_one_river_endpoint(riv, lake_cleaned)
+
         # --- Save final output ---
         self.lake_resolvable = lake_cleaned
 
@@ -145,6 +148,51 @@ class ResolvableLakes:
         # Combine LakeCOMID from start and end joins
         keep_ids = pd.Index(start_join["LakeCOMID"].tolist() +
                             end_join["LakeCOMID"].tolist()).unique()
+        filtered_lake = lake[lake["LakeCOMID"].isin(keep_ids)].reset_index(drop=True)
+        return filtered_lake
+
+    def _remove_lakes_touching_only_one_river_endpoint(self,
+                                                       riv: gpd.GeoDataFrame,
+                                                       lake: gpd.GeoDataFrame):
+        """
+        Remove lakes that touch only one river segment at their start or end points.
+        Only lakes touching two or more river segments at endpoints are kept.
+
+        Parameters
+        ----------
+        riv : GeoDataFrame
+            River linestrings with at least geometry + COMID.
+        lake : GeoDataFrame
+            Lake polygons containing LakeCOMID.
+
+        Returns
+        -------
+        GeoDataFrame
+            Filtered lake GeoDataFrame
+        """
+        riv = riv.copy()
+        # Remove null or empty geometries
+        riv = riv[riv.geometry.notnull() & ~riv.geometry.is_empty].reset_index(drop=True)
+        # Extract start and end points safely
+        def get_start_pt(g):
+            return Point(g.coords[0]) if g and g.coords else None
+        def get_end_pt(g):
+            return Point(g.coords[-1]) if g and g.coords else None
+        riv["start_pt"] = riv.geometry.apply(get_start_pt)
+        riv["end_pt"]   = riv.geometry.apply(get_end_pt)
+        # Convert start/end points to GeoDataFrames
+        start_gdf = gpd.GeoDataFrame(riv[["COMID"]], geometry=riv["start_pt"], crs=riv.crs)
+        end_gdf   = gpd.GeoDataFrame(riv[["COMID"]], geometry=riv["end_pt"], crs=riv.crs)
+        # Spatial join start/end points with lakes
+        start_join = gpd.sjoin(start_gdf, lake, how="inner", predicate="intersects")
+        end_join   = gpd.sjoin(end_gdf, lake, how="inner", predicate="intersects")
+        # Combine start/end joins
+        combined = pd.concat([start_join[["LakeCOMID", "COMID"]],
+                              end_join[["LakeCOMID", "COMID"]]])
+        # Count number of unique river segments per lake
+        seg_count = combined.groupby("LakeCOMID")["COMID"].nunique()
+        # Keep lakes that touch at least 2 river segments at endpoints
+        keep_ids = seg_count[seg_count > 1].index.tolist()
         filtered_lake = lake[lake["LakeCOMID"].isin(keep_ids)].reset_index(drop=True)
         return filtered_lake
 
