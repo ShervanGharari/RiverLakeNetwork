@@ -1,6 +1,7 @@
 import geopandas as gpd
 from   shapely.geometry import Point
 import pandas as pd
+from   .utility import Utility   # adjust path if needed
 
 
 class ResolvableLakes:
@@ -22,13 +23,22 @@ class ResolvableLakes:
         """
         # --- Step 1: spatial subset of lakes ---
         lake_subset = self._subset_lake(cat, lake, margin)
+        print(f"==== Number of lakes after subsetting: {len(lake_subset)} ====")
         # --- Step 2: remove lakes contained in only one catchment ---
         lake_cleaned = self._remove_inbasin_lakes(cat, lake_subset)
+        print(f"==== Number of lakes after removing intersection with only one lake: {len(lake_cleaned)} ====")
         # --- Step 3: remove lakes that are not touching river starting or ending point ---
         lake_cleaned = self._keep_lakes_touching_river_endpoints(riv, lake_cleaned)
-
+        print(f"==== Number of lakes after removing lakes that do not touch starting or ending points of river segments: {len(lake_cleaned)} ====")
         lake_cleaned = self._remove_lakes_touching_only_one_river_endpoint(riv, lake_cleaned)
-
+        print(f"==== Number of lakes after removing lakes that do touch only one starting or ending points of river segments: {len(lake_cleaned)} ====")
+        river_lake_int = self._river_lake_intersection_info(riv, lake_cleaned)
+        lake_cleaned, river_lake_int_filtered = self._remove_lakes_int_with_one_river_segment(lake_cleaned, river_lake_int)
+        print(f"==== Number of lakes after removing lakes that do intersect with only one river segment: {len(lake_cleaned)} ====")
+        lake_cleaned, river_lake_int_filtered = self._remove_lakes_with_repeated_max_uparea(lake_cleaned, river_lake_int_filtered)
+        print(f"==== Number of lakes after removing lakes that do have exactly the same uparea for their maximume uparea for various: {len(lake_cleaned)} ====")
+        lake_cleaned, river_lake_int_filtered = self._identify_lake_type(lake_cleaned, river_lake_int_filtered, riv)
+        print(f"==== Number of lakes after identifying the graph number within a lake: {len(lake_cleaned)} ====")
         # --- Save final output ---
         self.lake_resolvable = lake_cleaned
 
@@ -215,54 +225,166 @@ class ResolvableLakes:
         print("Number of river segments intersecting more than one lake:", m)
         return river_lake_int
 
-    def _remove_lakes_int_with_one_river_segment(self, river_lake_int: gpd.GeoDataFrame):
+    def _remove_lakes_int_with_one_river_segment(self,
+                                                 lake: gpd.GeoDataFrame,
+                                                 river_lake_int: gpd.GeoDataFrame):
         """
-        Remove lakes that intersect only a single river segment.
-        Only lakes intersecting >1 segment are kept.
-        """
-        df = river_lake_int.copy()
-        df["keep"] = df.groupby("LakeCOMID")["COMID"].transform("nunique") > 1
-        df = df[df["keep"]].reset_index(drop=True)
-        print("Number of lakes after Step-2:", df["LakeCOMID"].nunique())
-        return df.drop(columns="keep")
+        Remove lakes that intersect only one river segment.
+        Both the river-lake intersection table and the lake GeoDataFrame are refined.
 
-    def _remove_lakes_int_with_more_than_two_river_segment(self, river_lake_int: gpd.GeoDataFrame):
-        """
-        Keep only lakes that intersect more than one river segment.
-        Parameters
-        ----------
-        river_lake_int : GeoDataFrame
-            Output of overlay between river segments and lakes.
-            Must contain 'COMID' (river ID) and 'LakeCOMID' (lake ID).
-        Returns
-        -------
-        GeoDataFrame
-            Filtered GeoDataFrame containing only lakes intersecting >1 river segment.
-        """
-        df = river_lake_int.copy()
-        # Count number of unique river segments per lake
-        seg_count = df.groupby("LakeCOMID")["COMID"].transform("nunique")
-        # Keep only lakes with >1 segment intersecting
-        df_filtered = df[seg_count > 1].reset_index(drop=True)
-        return df_filtered
-
-    def _filter_lake(self, lake: gpd.GeoDataFrame, river_lake_int: gpd.GeoDataFrame):
-        """
-        Subset the lake GeoDataFrame to only those lakes that appear
-        in the river–lake intersection GeoDataFrame.
         Parameters
         ----------
         lake : GeoDataFrame
-            Original lake layer containing 'LakeCOMID'.
+            Lake polygons with LakeCOMID.
         river_lake_int : GeoDataFrame
-            Intersection layer containing 'LakeCOMID'.
+            Rows mapping river segments to lake polygons (must contain COMID + LakeCOMID).
+
         Returns
         -------
-        GeoDataFrame
-            Subset of `lake` containing only lakes present in `river_lake_int`.
+        (lake_filtered, river_lake_int_filtered)
+            lake_filtered              -> lakes intersecting >1 river segment
+            river_lake_int_filtered    -> cleaned rows matching lake_filtered
         """
-        # All LakeCOMID IDs that intersect with river segments
-        keep_ids = river_lake_int["LakeCOMID"].unique()
-        # Subset the lake dataset
+        df = river_lake_int.copy()
+        # Count unique river segments per lake
+        seg_count = df.groupby("LakeCOMID")["COMID"].nunique()
+        # Lakes touching more than one river segment
+        keep_ids = seg_count[seg_count > 1].index.tolist()
+        # Filter both datasets
+        river_lake_int_filtered = df[df["LakeCOMID"].isin(keep_ids)].reset_index(drop=True)
         lake_filtered = lake[lake["LakeCOMID"].isin(keep_ids)].reset_index(drop=True)
-        return lake_filtered
+        print("Number of lakes after removing single-segment lakes:", len(keep_ids))
+        return lake_filtered, river_lake_int_filtered
+
+    def _remove_lakes_with_repeated_max_uparea(self,
+                                               lake: gpd.GeoDataFrame,
+                                               river_lake_int: gpd.GeoDataFrame):
+        """
+        Remove lakes where the maximum uparea is repeated for more than one COMID.
+        Parameters
+        ----------
+        lake : GeoDataFrame
+            Lake polygons with LakeCOMID.
+        river_lake_int : GeoDataFrame
+            Intersections containing COMID, LakeCOMID, uparea.
+        Returns
+        -------
+        (lake_filtered, river_lake_int_filtered)
+        """
+        df = river_lake_int.copy()
+        remove_ids = []
+        # Process each lake
+        for lake_id, sub in df.groupby("LakeCOMID"):
+            max_up = sub["uparea"].max()
+            count_max = (sub["uparea"] == max_up).sum()
+            # Remove lake if maximum uparea is repeated
+            if count_max > 1:
+                remove_ids.append(lake_id)
+        # Apply filtering
+        lake_filtered = lake[~lake["LakeCOMID"].isin(remove_ids)].reset_index(drop=True)
+        river_lake_int_filtered = df[~df["LakeCOMID"].isin(remove_ids)].reset_index(drop=True)
+        print(f"Removed {len(remove_ids)} lakes where max uparea repeats across multiple COMIDs.")
+        return lake_filtered, river_lake_int_filtered
+
+
+
+    def _identify_lake_type(self,
+                            lake: gpd.GeoDataFrame,
+                            riv_lake_int: gpd.GeoDataFrame,
+                            riv: gpd.GeoDataFrame):
+        """
+        Classify lakes as exorheic or endorheic based on river network connectivity.
+        Rules:
+          1) If lake intersects only ONE river network:
+                - Identify most downstream segment (max uparea)
+                - If its length inside lake < original river length → EXORHEIC (keep)
+                - Else → remove lake (not resolvable)
+          2) If lake intersects MULTIPLE river networks:
+                - For each network, find if last COMID has NextDownCOMID <= 0
+                - If ANY network is closed → ENDORHEIC (keep)
+                - Else → remove lake
+          3) After classification:
+                - Each lake must have EXACTLY ONE of:
+                        exorheic = 1, endorheic = 0
+                    OR  exorheic = 0, endorheic = 1
+                - Lakes violating this rule are removed.
+        Returns
+        -------
+        lake_filtered, riv_lake_int_filtered
+        """
+        df_int = riv_lake_int.copy()
+        lake = lake.copy()
+        # Add classification columns
+        lake["exorheic"] = 0
+        lake["endorheic"] = 0
+        lakes_to_remove = []
+        # Build full river graph
+        original_graph = Utility.create_graph(
+            riv["COMID"].tolist(),
+            riv["NextDownCOMID"].tolist()
+        )
+        # Add original river lengths (temporary)
+        riv = riv.copy()
+        riv["_length_org"] = riv.geometry.length
+        # Add intersection lengths (temporary)
+        if "length_in_lake" not in df_int.columns:
+            df_int["_length_in_lake"] = df_int.geometry.length
+            length_col = "_length_in_lake"
+        else:
+            length_col = "length_in_lake"
+        # ----------------------------------------------------------
+        # Process each lake
+        # ----------------------------------------------------------
+        for lake_id, group in df_int.groupby("LakeCOMID"):
+            comids = group["COMID"].tolist()
+            num_parts, components = Utility.count_network_parts(original_graph, comids)
+            # ======================================================
+            # CASE 1 — Single connected river network
+            # ======================================================
+            if num_parts == 1:
+                # Most downstream segment = max uparea
+                max_uparea = group["uparea"].max()
+                ds_row = group[group["uparea"] == max_uparea].iloc[0]
+                comid_ds = ds_row["COMID"]
+                length_in_lake = ds_row[length_col]
+                length_original = float(riv.loc[riv["COMID"] == comid_ds, "_length_org"])
+                if length_in_lake < length_original:
+                    # EXORHEIC lake
+                    lake.loc[lake["LakeCOMID"] == lake_id, "exorheic"] = 1
+                else:
+                    # Not resolvable
+                    lakes_to_remove.append(lake_id)
+                continue
+            # ======================================================
+            # CASE 2 — Multiple river networks enter the lake
+            # ======================================================
+            keep = False
+            for comp in components:
+                sub = group[group["COMID"].isin(comp)]
+                # If ANY downstream segment has NextDownCOMID <= 0 → closed basin
+                if any(sub["NextDownCOMID"] <= 0):
+                    keep = True
+                    break
+            if keep:
+                lake.loc[lake["LakeCOMID"] == lake_id, "endorheic"] = 1
+            else:
+                lakes_to_remove.append(lake_id)
+        # ----------------------------------------------------------
+        # FINAL VALIDATION RULE
+        # Each lake must have EXACTLY one of {exorheic, endorheic} = 1
+        # ----------------------------------------------------------
+        invalid = lake[(lake["exorheic"] + lake["endorheic"]) != 1]["LakeCOMID"].tolist()
+        lakes_to_remove.extend(invalid)
+        lakes_to_remove = list(set(lakes_to_remove))  # unique
+        # ----------------------------------------------------------
+        # Filter outputs
+        # ----------------------------------------------------------
+        lake_filtered = lake[~lake["LakeCOMID"].isin(lakes_to_remove)].reset_index(drop=True)
+        riv_lake_int_filtered = df_int[~df_int["LakeCOMID"].isin(lakes_to_remove)].reset_index(drop=True)
+        print(f"Removed {len(lakes_to_remove)} unresolved lakes (graph-based check).")
+        # ----------------------------------------------------------
+        # Drop temporary columns
+        # ----------------------------------------------------------
+        riv.drop(columns=["_length_org"], inplace=True, errors="ignore")
+        df_int.drop(columns=["_length_in_lake"], inplace=True, errors="ignore")
+        return lake_filtered, riv_lake_int_filtered

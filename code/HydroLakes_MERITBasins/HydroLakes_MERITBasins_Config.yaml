@@ -15,8 +15,8 @@ MERITBasinsPaths:
   CstFileTemplate: hillslope_*_clean.shp                                    # pattern of riv files inside riv_path folder, ending with /
 
 pfafs:
-  - '71'
-  # - '72'
+  # - '71'
+  - '72'
   # - '73'
   # - '74'
   # - '75'
