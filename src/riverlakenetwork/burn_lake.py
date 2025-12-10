@@ -2,6 +2,7 @@ import geopandas as gpd
 from   shapely.geometry import Point
 import pandas as pd
 import numpy as np
+from   collections import defaultdict, deque
 from   .utility import Utility   # adjust path if needed
 
 
@@ -13,8 +14,6 @@ class BurnLakes:
         lake: gpd.GeoDataFrame,
         riv: gpd.GeoDataFrame):
 
-        #cat = self._cat_correction(cat, lake)
-        #riv = self._riv_correction(riv, lake)
         riv, cat, lake = self._riv_topology_correction(riv, cat, lake)
 
         self.cat_corrected = cat
@@ -144,17 +143,17 @@ class BurnLakes:
             # Remove temporary column
             lake = lake.drop(columns="__sort_up__")
         # -------------------------------------
+        # 4. Stack lakes with riv and cat
+        # -------------------------------------
+        cat_geometry_corrected = self._cat_geometry_correction(cat, lake)
+        riv_gemoetry_corrected = self._riv_geometry_correction(riv, lake)
+        # -------------------------------------
         # 3. Assign COMIDs to lakes after sorting
         # -------------------------------------
         maxCOMID = max(riv["COMID"].max(), cat["COMID"].max())
         n_lakes = len(lake)
         lake["COMID"] = list(range(maxCOMID + 1, maxCOMID + 1 + n_lakes))
         lake["islake"] = 1
-        # -------------------------------------
-        # 4. Stack lakes with riv and cat
-        # -------------------------------------
-        cat_geometry_corrected = self._cat_geometry_correction(cat, lake)
-        riv_gemoetry_corrected = self._riv_geometry_correction(riv, lake)
         # -------------------------------------
         # 4. Stack lakes with riv and cat
         # -------------------------------------
@@ -203,20 +202,67 @@ class BurnLakes:
         # -------------------------------------
         # 6. Update geometry and unit area for riv and cat
         # -------------------------------------
-        # Map corrected geometry and length from riv_geometry_corrected
-        geom_map = riv_gemoetry_corrected.set_index("COMID")["geometry"].to_dict()
-        length_map = riv_gemoetry_corrected.set_index("COMID")["length"].to_dict()
-        # Only replace geometry and length if length_ratio < 1
-        mask = riv.get("length_ratio", 1) < 1
-        riv.loc[mask, "geometry"] = riv.loc[mask, "COMID"].map(geom_map)
-        riv.loc[mask, "length"] = riv.loc[mask, "COMID"].map(length_map)
-        # 2. Map corrected unitarea and geometry from cat_geometry_corrected
-        cat_geom_map = cat_geometry_corrected.set_index("COMID")["geometry"].to_dict()
-        cat_area_map = cat_geometry_corrected.set_index("COMID")["unitarea"].to_dict()
-        riv["geometry"] = riv["COMID"].map(cat_geom_map).combine_first(riv["geometry"])
-        riv["unitarea"] = riv["COMID"].map(cat_area_map).fillna(riv["unitarea"])
-        # 3. Map lake geometries for lake COMIDs
+        riv_corr_lookup = riv_gemoetry_corrected[riv_gemoetry_corrected["length_ratio"] < 1].set_index("COMID")
+        riv_geom_map = riv_corr_lookup["geometry"].to_dict()
+        riv_length_map = riv_corr_lookup["length"].to_dict()
+        riv_ratio_map = riv_corr_lookup["length_ratio"].to_dict()
+        # Lake geometries
         lake_geom_map = lake.set_index("COMID")["geometry"].to_dict()
-        riv.loc[riv.get("islake", 0) == 1, "geometry"] = riv.loc[riv.get("islake", 0) == 1, "COMID"].map(lake_geom_map)
+        # --- Loop over riv ---
+        for idx, row in riv.iterrows():
+            comid = row["COMID"]
+            # 1. Check length_ratio from corrected rivers
+            length_ratio = riv_ratio_map.get(comid, 1)
+            # 2. Update geometry and length if length_ratio < 1
+            if length_ratio == 0:
+                # Fully submerged → geometry None, length 0
+                riv.at[idx, "geometry"] = None
+                riv.at[idx, "length"] = 0
+            elif length_ratio < 1:
+                geom = riv_geom_map.get(comid, None)
+                if geom is not None and geom.is_valid:
+                    riv.at[idx, "geometry"] = geom
+                length = riv_length_map.get(comid, None)
+                if length is not None:
+                    riv.at[idx, "length"] = length
+            # 3. Update geometry if this is a lake
+            if row.get("islake", 0) == 1:
+                geom = lake_geom_map.get(comid, None)
+                if geom is not None and geom.is_valid:
+                    riv.at[idx, "geometry"] = geom
+        # cat correction of geometry and unitarea
+        # Prepare lookup maps from corrected CAT
+        cat_lookup = cat_geometry_corrected.set_index("COMID")
+        cat_geom_map = cat_lookup["geometry"].to_dict()
+        cat_area_map = cat_lookup["unitarea"].to_dict()
+        cat_ratio_map = cat_lookup.get("area_ratio", pd.Series(1, index=cat_lookup.index)).to_dict()
+        # Loop over CAT to update geometry and unitarea
+        for idx, row in cat.iterrows():
+            comid = row["COMID"]
+            # Get area_ratio
+            area_ratio = cat_ratio_map.get(comid, 1)
+            if area_ratio == 0:
+                # Fully removed → geometry None, unitarea 0
+                cat.at[idx, "geometry"] = None
+                cat.at[idx, "unitarea"] = 0
+            else:
+                # Update geometry from corrected CAT if available and valid
+                geom = cat_geom_map.get(comid, None)
+                if geom is not None and geom.is_valid:
+                    cat.at[idx, "geometry"] = geom
+                # Update unitarea from corrected CAT
+                unitarea = cat_area_map.get(comid, None)
+                if unitarea is not None:
+                    cat.at[idx, "unitarea"] = unitarea
+        # pass the unit area from cat to riv
+        # first set the unitarea to zero in the riv
+        # Build lookup from corrected CAT
+        cat_unit_map = cat.set_index("COMID")["unitarea"]
+        # Map CAT.unitarea → RIV.unitarea
+        riv["unitarea"] = riv["COMID"].map(cat_unit_map)
+        # Replace missing or NaN with 0
+        riv["unitarea"] = riv["unitarea"].fillna(0)
+        # add the inoutflow
+        riv["inoutflow"] = ((riv["inflow"] == 1) & (riv["outflow"] == 1)).astype(int)
         # return
         return riv, cat, lake

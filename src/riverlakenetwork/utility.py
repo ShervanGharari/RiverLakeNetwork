@@ -11,8 +11,80 @@ import warnings
 import networkx as nx
 import re
 import copy
+from   collections import defaultdict, deque
 
 class Utility:
+
+    def compute_uparea(
+        riv: pd.DataFrame,
+        comid_col: str = "COMID",
+        next_col: str = "NextDownCOMID",
+        area_col: str = "unitarea",
+        out_col: str = "uparea"):
+        """
+        Compute upstream contributing area ('uparea') for a river network.
+
+        Parameters
+        ----------
+        riv : pd.DataFrame
+            River network GeoDataFrame / DataFrame.
+        comid_col : str
+            Column name of the unique segment ID.
+        next_col : str
+            Column name linking each segment to its downstream COMID.
+        area_col : str
+            Column name containing each segment's unitarea.
+        out_col : str
+            Name of output column for computed upstream area.
+
+        Returns
+        -------
+        pd.DataFrame
+            Copy of riv with new 'uparea' column added.
+        """
+
+        df = riv.copy()
+
+        # Ensure area exists
+        df[area_col] = df[area_col].fillna(0).astype(float)
+
+        # Build quick lookup dictionaries
+        nextdown = df.set_index(comid_col)[next_col].to_dict()
+        uparea = df.set_index(comid_col)[area_col].to_dict()
+
+        # --- Compute indegree (how many upstream segments flow to each COMID) ---
+        indegree = defaultdict(int)
+        for u, d in nextdown.items():
+            if pd.notna(d):
+                indegree[d] += 1
+
+        # --- Headwaters (segments that have no upstream tributaries) ---
+        all_comids = df[comid_col].tolist()
+        queue = deque([cid for cid in all_comids if indegree.get(cid, 0) == 0])
+
+        # --- Topological traversal: propagate area downstream ---
+        visited = set()
+
+        while queue:
+            u = queue.popleft()
+            visited.add(u)
+
+            d = nextdown.get(u, None)
+            if d is None or pd.isna(d):
+                continue
+
+            # Add upstream contribution
+            uparea[d] += uparea[u]
+
+            # Decrease indegree and push when zero
+            indegree[d] -= 1
+            if indegree[d] == 0:
+                queue.append(d)
+
+        # --- Final assignment ---
+        df[out_col] = df[comid_col].map(uparea)
+
+        return df
 
     def add_immediate_upstream (df,
                                 mapping = {'id':'LINKNO','next_id':'DSLINKNO'}):

@@ -206,6 +206,9 @@ class ResolvableLakes:
         filtered_lake = lake[lake["LakeCOMID"].isin(keep_ids)].reset_index(drop=True)
         return filtered_lake
 
+
+
+
     def _river_lake_intersection_info(self, riv: gpd.GeoDataFrame, lake: gpd.GeoDataFrame):
         """
         Computes basic intersection summary between rivers and lakes.
@@ -286,6 +289,16 @@ class ResolvableLakes:
         print(f"Removed {len(remove_ids)} lakes where max uparea repeats across multiple COMIDs.")
         return lake_filtered, river_lake_int_filtered
 
+
+
+    #def _supress_number_of_lakes_to_two_per_riv_segment(self,
+    #                                                    lake: gpd.GeoDataFrame,
+    #                                                    river_lake_int: gpd.GeoDataFrame):
+
+
+    #def _enforce_one_lake_per_river_segment(self,
+    #                                        lake: gpd.GeoDataFrame,
+    #                                        river_lake_int: gpd.GeoDataFrame):
 
 
     def _identify_lake_type(self,
