@@ -56,7 +56,6 @@ class DataChecker:
         self._check_COMIDs()
         self._check_area_units()
         self._check_crs(suppress=False)
-        self._pass_unitarea()
 
     # -------------------------------
     # Specific dictionary checks
@@ -124,10 +123,6 @@ class DataChecker:
         # Sort both GeoDataFrames by COMID
         self.riv = self.riv.sort_values('COMID').reset_index(drop=True)
         self.cat = self.cat.sort_values('COMID').reset_index(drop=True)
-
-    def _pass_unitarea(self):
-
-        self.riv["unitarea"] = self.cat["unitarea"]
 
 
     def _check_area_units(self):

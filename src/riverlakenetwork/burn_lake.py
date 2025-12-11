@@ -168,6 +168,7 @@ class BurnLakes:
         for _, lk in lake.iterrows():
             # Correct field name
             lk_comid = lk["LakeCOMID"]
+            comid = lk["COMID"]
             # ---- 1. Get intersecting rivers ----
             riv_ids = lake_riv.loc[lake_riv["LakeCOMID"] == lk_comid, "COMID"].unique()
             if len(riv_ids) == 0:
@@ -191,14 +192,13 @@ class BurnLakes:
                 except (ValueError, TypeError):
                     return False
             riv.loc[riv["LakeCOMID"] == lk_comid, "NextDownCOMID"] = -9999 # for endorheic and exorheic
+            riv.loc[riv["COMID"].isin(riv_ids), "NextDownCOMID"] = comid
             if is_exhoreic_flag(lk.get("exorheic", 0)):
                 subset = riv.loc[riv["COMID"].isin(riv_ids)]
                 outflow_riv = subset.loc[subset["uparea"].idxmax(), "COMID"]
                 riv.loc[riv["COMID"] == outflow_riv, "outflow"] = 1
                 riv.loc[riv["COMID"] == outflow_riv, "inflow"] = 0
                 riv.loc[riv["LakeCOMID"] == lk_comid, "NextDownCOMID"] = outflow_riv
-            # ---- 3. All intersecting rivers drain INTO this lake ----
-            riv.loc[riv["COMID"].isin(riv_ids), "NextDownCOMID"] = lk_comid
         # -------------------------------------
         # 6. Update geometry and unit area for riv and cat
         # -------------------------------------
@@ -264,5 +264,7 @@ class BurnLakes:
         riv["unitarea"] = riv["unitarea"].fillna(0)
         # add the inoutflow
         riv["inoutflow"] = ((riv["inflow"] == 1) & (riv["outflow"] == 1)).astype(int)
+        # (re)compute uparea
+        riv = Utility.compute_uparea(riv)
         # return
         return riv, cat, lake

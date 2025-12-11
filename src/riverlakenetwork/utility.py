@@ -16,74 +16,91 @@ from   collections import defaultdict, deque
 class Utility:
 
     def compute_uparea(
-        riv: pd.DataFrame,
-        comid_col: str = "COMID",
-        next_col: str = "NextDownCOMID",
-        area_col: str = "unitarea",
-        out_col: str = "uparea"):
+            riv: pd.DataFrame,
+            comid_col: str = "COMID",
+            next_col: str = "NextDownCOMID",
+            area_col: str = "unitarea",
+            out_col: str = "uparea"):
         """
-        Compute upstream contributing area ('uparea') for a river network.
+        Compute upstream contributing area ("uparea") for a river network while
+        safely handling terminal segments and invalid downstream identifiers.
 
-        Parameters
-        ----------
-        riv : pd.DataFrame
-            River network GeoDataFrame / DataFrame.
-        comid_col : str
-            Column name of the unique segment ID.
-        next_col : str
-            Column name linking each segment to its downstream COMID.
-        area_col : str
-            Column name containing each segment's unitarea.
-        out_col : str
-            Name of output column for computed upstream area.
+        Notes on network structure and special cases
+        -------------------------------------------
+        In many hydrological datasets, the downstream identifier (`NextDownCOMID`)
+        can contain special values that indicate the end of the river network or
+        a topological break. For example:
+            - -9999   → indicates the segment is an outlet (no downstream)
+            - NaN     → missing or undefined downstream COMID
+            - values not present in the list of COMIDs → caused by clipping,
+              lake suppression, topology repair, or incomplete river networks
+
+        The original topological traversal algorithm assumes that every
+        `NextDownCOMID` is a valid node in the river network. If special values
+        such as -9999 are treated as real COMIDs, the algorithm attempts to
+        accumulate upstream area into a non-existent node, resulting in a
+        KeyError such as:
+
+            KeyError: -9999.0
+
+        To avoid this, the function first *sanitizes* the downstream column by:
+            1. Converting -9999 to NaN
+            2. Converting any downstream ID that does not exist in the COMID list
+               to NaN as well
+            3. Treating NaN in the downstream column as a terminal outlet
+
+        After cleaning the topology, the algorithm performs a standard
+        topological traversal (from headwaters to outlet), accumulating upstream
+        contributing area along the valid downstream connections only.
+
+        This ensures:
+            - No KeyErrors during traversal
+            - Proper handling of outlet segments
+            - Robust behavior even when the network has missing or pruned segments
+            - Correct propagation of contributing area through the river graph
 
         Returns
         -------
         pd.DataFrame
-            Copy of riv with new 'uparea' column added.
+            A copy of the input with a new column containing the computed upstream
+            contributing area for every COMID.
         """
-
         df = riv.copy()
-
-        # Ensure area exists
+        # Ensure numeric area
         df[area_col] = df[area_col].fillna(0).astype(float)
-
-        # Build quick lookup dictionaries
+        # COMIDs in network
+        comids = set(df[comid_col].tolist())
+        # Normalize terminal markers
+        df[next_col] = df[next_col].replace(-9999, np.nan)
+        # Replace downstream COMIDs not part of this network → treat as terminal
+        df.loc[~df[next_col].isin(comids), next_col] = np.nan
+        # Build lookup dictionaries
         nextdown = df.set_index(comid_col)[next_col].to_dict()
         uparea = df.set_index(comid_col)[area_col].to_dict()
-
-        # --- Compute indegree (how many upstream segments flow to each COMID) ---
+        # Compute indegree
         indegree = defaultdict(int)
         for u, d in nextdown.items():
-            if pd.notna(d):
+            if d in comids:   # only count valid downstreams
                 indegree[d] += 1
-
-        # --- Headwaters (segments that have no upstream tributaries) ---
-        all_comids = df[comid_col].tolist()
-        queue = deque([cid for cid in all_comids if indegree.get(cid, 0) == 0])
-
-        # --- Topological traversal: propagate area downstream ---
+        # Headwaters = no upstream tributaries
+        queue = deque([cid for cid in comids if indegree.get(cid, 0) == 0])
         visited = set()
-
+        # Propagate areas
         while queue:
             u = queue.popleft()
             visited.add(u)
-
             d = nextdown.get(u, None)
-            if d is None or pd.isna(d):
+            # Terminal → stop here
+            if d is None or pd.isna(d) or d not in comids:
                 continue
-
             # Add upstream contribution
             uparea[d] += uparea[u]
-
-            # Decrease indegree and push when zero
+            # Decrease indegree
             indegree[d] -= 1
             if indegree[d] == 0:
                 queue.append(d)
-
-        # --- Final assignment ---
+        # Assign output
         df[out_col] = df[comid_col].map(uparea)
-
         return df
 
     def add_immediate_upstream (df,
@@ -127,10 +144,8 @@ class Utility:
             print('It seems there is no upstream segment for the provided river network. '+\
                   'This may mean the river network you are working may have first order rivers '+\
                   'that are not connected.')
-
         # drop upstream
         df = df.drop(columns = 'upstream')
-
         return df
 
 
