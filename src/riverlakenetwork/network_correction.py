@@ -6,7 +6,7 @@ from   collections import defaultdict, deque
 from   .utility import Utility   # adjust path if needed
 
 
-class BurnLakes:
+class NetworkTopologyCorrection:
 
     def __init__(
         self,
@@ -18,6 +18,7 @@ class BurnLakes:
 
         self.cat_corrected = cat
         self.riv_corrected = riv
+        self.lake_corrected = lake
 
 
     def _cat_geometry_correction(self, cat: gpd.GeoDataFrame, lake: gpd.GeoDataFrame):

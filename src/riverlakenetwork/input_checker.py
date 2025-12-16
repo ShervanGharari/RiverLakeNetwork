@@ -1,6 +1,6 @@
 import geopandas as gpd
 
-class DataChecker:
+class InputChecker:
     """
     Checks river network, subbasins, and lakes.
 

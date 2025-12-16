@@ -1,7 +1,7 @@
 import geopandas as gpd
 from pathlib import Path
 
-class DataLoader:
+class InputLoader:
     """
     Class to load and manage river, subbasin, and lake GeoDataFrames
     along with their associated dictionaries from a configuration.
