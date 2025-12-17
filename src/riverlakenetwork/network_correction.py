@@ -265,6 +265,9 @@ class NetworkTopologyCorrection:
         riv["unitarea"] = riv["unitarea"].fillna(0)
         # add the inoutflow
         riv["inoutflow"] = ((riv["inflow"] == 1) & (riv["outflow"] == 1)).astype(int)
+        # add clean up here, remove the subbasin and riv that are fully under lake
+        # both their cat area and length are set to zero
+        # this does not apply to inoutflow segments
         # (re)compute uparea
         riv = Utility.compute_uparea(riv)
         # add immediate upstream

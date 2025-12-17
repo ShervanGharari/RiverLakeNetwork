@@ -81,7 +81,7 @@ class ResolvableLakes:
         ]
         # --- 4. Spatial intersection with catchments ---
         intersected = gpd.sjoin(lake_filtered, cat, how="inner", predicate="intersects")
-        print(intersected.columns)
+        # print(intersected.columns)
         lake_ids = intersected["LakeCOMID"].unique()
         lake_subset = lake_filtered[lake_filtered["LakeCOMID"].isin(lake_ids)].reset_index(drop=True)
         # Keep only the relevant columns

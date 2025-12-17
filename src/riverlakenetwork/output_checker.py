@@ -102,7 +102,7 @@ class OutputChecker:
                 | (self.riv["length"] <= tol)
             )
         ]
-        print(bad_links)
+        # print(bad_links)
         for _, row in bad_links.iterrows():
             comid = int(row["COMID"])
             # -------------------------------------------------
@@ -118,7 +118,6 @@ class OutputChecker:
                     related.add(int(val))
             if not related:
                 continue
-            print(related)
             # -------------------------------------------------
             # 2. Slice riv once and keep only lake segments
             # -------------------------------------------------
@@ -128,7 +127,6 @@ class OutputChecker:
             ]
             if riv_slice.empty:
                 continue
-            print(riv_slice)
             # -------------------------------------------------
             # 3. Resolve LakeCOMID from lake table
             # -------------------------------------------------
@@ -137,12 +135,6 @@ class OutputChecker:
                 self.lake["COMID"].astype("Int64").isin(lakes_comids)
             ]
             lakes_ids = lake_slice["LakeCOMID"].astype(int).tolist()
-            print(lakes_comids)
-            print(len(lakes_comids))
-            print(lakes_ids)
-            print(len(lakes_ids))
-            print(lake_slice)
-            print(len(lake_slice))
             # -------------------------------------------------
             # 4. Warn only if lake–lake connector
             # -------------------------------------------------
