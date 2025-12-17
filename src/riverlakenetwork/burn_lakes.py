@@ -103,7 +103,6 @@ class BurnLakes:
         t0 = datetime.now()
         print("=============================================================================")
         print("=== Output checker started at :", t0.strftime("%Y-%m-%d %H:%M:%S"), " =======")
-        print("Output checker started at :", t0.strftime("%Y-%m-%d %H:%M:%S"))
         print(self.riv)
         print(self.riv_org)
         OutputChecker(
