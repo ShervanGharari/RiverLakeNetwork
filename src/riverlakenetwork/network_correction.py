@@ -267,5 +267,7 @@ class NetworkTopologyCorrection:
         riv["inoutflow"] = ((riv["inflow"] == 1) & (riv["outflow"] == 1)).astype(int)
         # (re)compute uparea
         riv = Utility.compute_uparea(riv)
+        # add immediate upstream
+        riv = Utility.add_immediate_upstream (riv, mapping = {'id':'COMID','next_id':'NextDownCOMID'})
         # return
         return riv, cat, lake

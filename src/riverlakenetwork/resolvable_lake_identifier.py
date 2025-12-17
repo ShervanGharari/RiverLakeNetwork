@@ -39,8 +39,8 @@ class ResolvableLakes:
         print(f"==== Number of lakes after removing lakes that do have exactly the same uparea for their maximume uparea for various: {len(lake_cleaned)} ====")
         lake_cleaned, river_lake_int_filtered = self._supress_number_of_lakes_to_two_per_riv_segment(lake_cleaned, river_lake_int_filtered, riv)
         print(f"==== Number of lakes after removing lakes from segments that intersect with more than 3 lakes: {len(lake_cleaned)} ====")
-        lake_cleaned, river_lake_int_filtered = self._enforce_one_lake_per_river_segment(lake_cleaned, river_lake_int_filtered)
-        print(f"==== Number of lakes after enforcing one lake per river segment: {len(lake_cleaned)} ====")
+        #lake_cleaned, river_lake_int_filtered = self._enforce_one_lake_per_river_segment(lake_cleaned, river_lake_int_filtered)
+        #print(f"==== Number of lakes after enforcing one lake per river segment: {len(lake_cleaned)} ====")
         lake_cleaned, river_lake_int_filtered = self._identify_lake_type(lake_cleaned, river_lake_int_filtered, riv)
         print(f"==== Number of lakes after identifying the graph number within a lake: {len(lake_cleaned)} ====")
         # --- Save final output ---
