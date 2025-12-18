@@ -25,90 +25,72 @@ from typing import (
 class Utility:
 
     def compute_uparea(
-            riv: pd.DataFrame,
-            comid_col: str = "COMID",
-            next_col: str = "NextDownCOMID",
-            area_col: str = "unitarea",
-            out_col: str = "uparea"):
+        riv: pd.DataFrame,
+        comid_col: str = "COMID",
+        next_col: str = "NextDownCOMID",
+        area_col: str = "unitarea",
+        out_col: str = "uparea"):
         """
-        Compute upstream contributing area ("uparea") for a river network while
-        safely handling terminal segments and invalid downstream identifiers.
-
-        Notes on network structure and special cases
-        -------------------------------------------
-        In many hydrological datasets, the downstream identifier (`NextDownCOMID`)
-        can contain special values that indicate the end of the river network or
-        a topological break. For example:
-            - -9999   → indicates the segment is an outlet (no downstream)
-            - NaN     → missing or undefined downstream COMID
-            - values not present in the list of COMIDs → caused by clipping,
-              lake suppression, topology repair, or incomplete river networks
-
-        The original topological traversal algorithm assumes that every
-        `NextDownCOMID` is a valid node in the river network. If special values
-        such as -9999 are treated as real COMIDs, the algorithm attempts to
-        accumulate upstream area into a non-existent node, resulting in a
-        KeyError such as:
-
-            KeyError: -9999.0
-
-        To avoid this, the function first *sanitizes* the downstream column by:
-            1. Converting -9999 to NaN
-            2. Converting any downstream ID that does not exist in the COMID list
-               to NaN as well
-            3. Treating NaN in the downstream column as a terminal outlet
-
-        After cleaning the topology, the algorithm performs a standard
-        topological traversal (from headwaters to outlet), accumulating upstream
-        contributing area along the valid downstream connections only.
-
-        This ensures:
-            - No KeyErrors during traversal
-            - Proper handling of outlet segments
-            - Robust behavior even when the network has missing or pruned segments
-            - Correct propagation of contributing area through the river graph
-
-        Returns
-        -------
-        pd.DataFrame
-            A copy of the input with a new column containing the computed upstream
-            contributing area for every COMID.
+        Compute upstream contributing area ("uparea") for a river network.
+        Design principles
+        -----------------
+        - Preserves original NextDownCOMID values (e.g. -9999)
+        - Internally treats invalid / terminal downstream IDs as NaN
+        - Never propagates flow into non-existent nodes
+        - Robust to clipped networks and lake suppression
+        - Side-effect free: input DataFrame is not modified
         """
+        # --------------------------------------------------
+        # 0. Shallow copy (no topology mutation)
+        # --------------------------------------------------
         df = riv.copy()
-        # Ensure numeric area
-        df[area_col] = df[area_col].fillna(0).astype(float)
-        # COMIDs in network
-        comids = set(df[comid_col].tolist())
-        # Normalize terminal markers
-        df[next_col] = df[next_col].replace(-9999, np.nan)
-        # Replace downstream COMIDs not part of this network → treat as terminal
-        df.loc[~df[next_col].isin(comids), next_col] = np.nan
-        # Build lookup dictionaries
-        nextdown = df.set_index(comid_col)[next_col].to_dict()
-        uparea = df.set_index(comid_col)[area_col].to_dict()
-        # Compute indegree
+        # --------------------------------------------------
+        # 1. Prepare area values
+        # --------------------------------------------------
+        df[area_col] = df[area_col].fillna(0.0).astype(float)
+        # --------------------------------------------------
+        # 2. Prepare COMID sets
+        # --------------------------------------------------
+        comids = set(df[comid_col].astype(int))
+        # --------------------------------------------------
+        # 3. Create CLEAN downstream column (internal use only)
+        # --------------------------------------------------
+        next_clean = df[next_col].replace(-9999, np.nan)
+        # Downstream IDs not present in the network → terminal
+        next_clean.loc[~next_clean.isin(comids)] = np.nan
+        # --------------------------------------------------
+        # 4. Build topology dictionaries
+        # --------------------------------------------------
+        nextdown = dict(zip(df[comid_col], next_clean))
+        uparea = dict(zip(df[comid_col], df[area_col]))
+        # --------------------------------------------------
+        # 5. Compute indegree (number of upstream tributaries)
+        # --------------------------------------------------
         indegree = defaultdict(int)
         for u, d in nextdown.items():
-            if d in comids:   # only count valid downstreams
-                indegree[d] += 1
-        # Headwaters = no upstream tributaries
+            if pd.notna(d):
+                indegree[int(d)] += 1
+        # --------------------------------------------------
+        # 6. Initialize queue with headwaters
+        # --------------------------------------------------
         queue = deque([cid for cid in comids if indegree.get(cid, 0) == 0])
-        visited = set()
-        # Propagate areas
+        # --------------------------------------------------
+        # 7. Topological accumulation
+        # --------------------------------------------------
         while queue:
             u = queue.popleft()
-            visited.add(u)
-            d = nextdown.get(u, None)
-            # Terminal → stop here
-            if d is None or pd.isna(d) or d not in comids:
+            d = nextdown.get(u)
+            # Terminal segment → nothing downstream
+            if pd.isna(d):
                 continue
-            # Add upstream contribution
+            d = int(d)
             uparea[d] += uparea[u]
-            # Decrease indegree
             indegree[d] -= 1
             if indegree[d] == 0:
                 queue.append(d)
-        # Assign output
+        # --------------------------------------------------
+        # 8. Assign output (topology untouched)
+        # --------------------------------------------------
         df[out_col] = df[comid_col].map(uparea)
         return df
 
