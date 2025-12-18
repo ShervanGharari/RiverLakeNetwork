@@ -29,9 +29,11 @@ class Utility:
         comid_col: str = "COMID",
         next_col: str = "NextDownCOMID",
         area_col: str = "unitarea",
-        out_col: str = "uparea"):
+        out_col: str = "uparea",
+    ) -> pd.DataFrame:
         """
         Compute upstream contributing area ("uparea") for a river network.
+
         Design principles
         -----------------
         - Preserves original NextDownCOMID values (e.g. -9999)
@@ -40,29 +42,44 @@ class Utility:
         - Robust to clipped networks and lake suppression
         - Side-effect free: input DataFrame is not modified
         """
+
         # --------------------------------------------------
-        # 0. Shallow copy (no topology mutation)
+        # 0. Copy + enforce clean state
         # --------------------------------------------------
         df = riv.copy()
+
+        # Always recompute uparea
+        if out_col in df.columns:
+            df = df.drop(columns=out_col)
+
+        # Enforce integer COMIDs
+        df[comid_col] = df[comid_col].astype(int)
+        df[next_col] = df[next_col].astype("Int64")  # preserves -9999
+
         # --------------------------------------------------
         # 1. Prepare area values
         # --------------------------------------------------
         df[area_col] = df[area_col].fillna(0.0).astype(float)
+
         # --------------------------------------------------
-        # 2. Prepare COMID sets
+        # 2. Prepare COMID set
         # --------------------------------------------------
-        comids = set(df[comid_col].astype(int))
+        comids = set(df[comid_col])
+
         # --------------------------------------------------
-        # 3. Create CLEAN downstream column (internal use only)
+        # 3. Create CLEAN downstream column (internal only)
         # --------------------------------------------------
         next_clean = df[next_col].replace(-9999, np.nan)
-        # Downstream IDs not present in the network → terminal
+
+        # Downstream IDs not in this network → terminal
         next_clean.loc[~next_clean.isin(comids)] = np.nan
+
         # --------------------------------------------------
         # 4. Build topology dictionaries
         # --------------------------------------------------
         nextdown = dict(zip(df[comid_col], next_clean))
         uparea = dict(zip(df[comid_col], df[area_col]))
+
         # --------------------------------------------------
         # 5. Compute indegree (number of upstream tributaries)
         # --------------------------------------------------
@@ -70,28 +87,35 @@ class Utility:
         for u, d in nextdown.items():
             if pd.notna(d):
                 indegree[int(d)] += 1
+
         # --------------------------------------------------
         # 6. Initialize queue with headwaters
         # --------------------------------------------------
         queue = deque([cid for cid in comids if indegree.get(cid, 0) == 0])
+
         # --------------------------------------------------
         # 7. Topological accumulation
         # --------------------------------------------------
         while queue:
             u = queue.popleft()
             d = nextdown.get(u)
-            # Terminal segment → nothing downstream
+
+            # Terminal segment
             if pd.isna(d):
                 continue
+
             d = int(d)
             uparea[d] += uparea[u]
             indegree[d] -= 1
+
             if indegree[d] == 0:
                 queue.append(d)
+
         # --------------------------------------------------
         # 8. Assign output (topology untouched)
         # --------------------------------------------------
         df[out_col] = df[comid_col].map(uparea)
+
         return df
 
     def add_immediate_upstream (df,
@@ -114,7 +138,7 @@ class Utility:
 
         # Add edges from the DataFrame (reversing the direction)
         for _, row in df.iterrows():
-            print(row[ID], row[downID])
+            # print(row[ID], row[downID])
             if row[downID] > -0.01:  # Skip nodes with negative downstream
                 G.add_edge(row[downID], row[ID])
 

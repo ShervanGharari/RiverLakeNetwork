@@ -293,14 +293,18 @@ class NetworkTopologyCorrection:
                     return float(val) == 1
                 except (ValueError, TypeError):
                     return False
-            riv.loc[riv["LakeCOMID"] == lk_comid, "NextDownCOMID"] = -9999 # for endorheic and exorheic
-            riv.loc[riv["COMID"].isin(riv_ids), "NextDownCOMID"] = comid
             if is_exhoreic_flag(lk.get("exorheic", 0)):
                 subset = riv.loc[riv["COMID"].isin(riv_ids)]
                 outflow_riv = subset.loc[subset["uparea"].idxmax(), "COMID"]
+                nextdownoutflow_riv = subset.loc[subset["uparea"].idxmax(), "NextDownCOMID"]
+                riv.loc[riv["COMID"].isin(riv_ids), "NextDownCOMID"] = comid
                 riv.loc[riv["COMID"] == outflow_riv, "outflow"] = 1
                 riv.loc[riv["COMID"] == outflow_riv, "inflow"] = 0
+                riv.loc[riv["COMID"] == outflow_riv, "NextDownCOMID"] = nextdownoutflow_riv
                 riv.loc[riv["LakeCOMID"] == lk_comid, "NextDownCOMID"] = outflow_riv
+            else:
+                riv.loc[riv["LakeCOMID"] == lk_comid, "NextDownCOMID"] = -9999 # for endorheic and exorheic
+                riv.loc[riv["COMID"].isin(riv_ids), "NextDownCOMID"] = comid
         # -------------------------------------
         # 6. Update geometry and unit area for riv and cat
         # -------------------------------------
@@ -371,10 +375,10 @@ class NetworkTopologyCorrection:
             riv = Utility.add_immediate_upstream (riv, mapping = {'id':'COMID','next_id':'NextDownCOMID'})
             riv, cat = self._clean_up(riv, cat)
         # (re)compute uparea
-        print(riv)
+        #print(riv)
         riv = Utility.compute_uparea(riv)
         # add immediate upstream
-        print(riv)
+        #print(riv)
         riv = Utility.add_immediate_upstream (riv, mapping = {'id':'COMID','next_id':'NextDownCOMID'})
         # return
         return riv, cat, lake
