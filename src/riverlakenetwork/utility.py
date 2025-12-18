@@ -12,6 +12,15 @@ import networkx as nx
 import re
 import copy
 from   collections import defaultdict, deque
+from typing import (
+    Optional,
+    Dict,
+    Tuple,
+    Union,
+    Sequence,
+    Iterable,
+    List,
+)
 
 class Utility:
 
@@ -111,6 +120,9 @@ class Utility:
         # river segments, provide the maximume existing upstream segments in column called maxup
         # and the values in up1, up2, up3, etc
 
+        # remove existing max up and up*
+        df = df.drop(columns=df.filter(regex=r'^(maxup|up\d+)$').columns, errors="ignore")
+
         # get the name of ID and downID
         downID = mapping.get('next_id')
         ID = mapping.get('id')
@@ -120,6 +132,7 @@ class Utility:
 
         # Add edges from the DataFrame (reversing the direction)
         for _, row in df.iterrows():
+            print(row[ID], row[downID])
             if row[downID] > -0.01:  # Skip nodes with negative downstream
                 G.add_edge(row[downID], row[ID])
 
@@ -174,3 +187,164 @@ class Utility:
                 sample_components.add(frozenset(component))  # Use frozenset to store unique components
 
         return len(sample_components), [set(comp) for comp in sample_components]
+
+
+
+    def merit_read_file (pfaf: str,
+                         riv_file_template: str,
+                         cat_file_template: str,
+                         cst_file_template: Optional [str] = None):
+
+        # local function to read costal hillslope
+        def merit_cst_prepare(
+            cst: gpd.GeoDataFrame,
+            cst_col: Optional[Dict[str, str]] = None,
+            cat: Optional[gpd.GeoDataFrame] = None,
+            cat_col_id: Optional[str] = None,
+            cst_col_id_reset: bool = True,
+            crs: int = 4326,
+            *args,
+            ) -> gpd.GeoDataFrame:
+            # get the possible existing id, area if exists
+            cst_col_id = 'COMID'
+            cst_col_area = 'unitarea'
+            if cst_col is not None:
+                cst_col_id = cst_col.get('id')
+                cst_col_area = cst_col.get('area')
+            if not cst.crs:
+                cst.set_crs(epsg=4326, inplace=True, allow_override=True)
+                warnings.warn('CRS of the coastal hillslope Shapefile has been assumed to be EPSG:4326')
+            if cst_col_id_reset:
+                max_cat_id = 0
+                if cat is not None:
+                    max_cat_id = cat[cat_col_id].max()
+                cst[cst_col_id] = range(max_cat_id+1,
+                                        max_cat_id+1+len(cst))
+            else:
+                if not cst_col_id in cst.columns:
+                    sys.exit('the corresponding id is not given for cosatl hillslope')
+                else:
+                    max_cat_id = 0
+                    if cat is not None:
+                        max_cat_id = cat[cat_col_id].max()
+                    min_cst_id = cst[cst_col_id].min()
+                    if min_cst_id < max_cat_id:
+                        sys.exit('there is some mixed up COMID between the cat and costal hillslope')
+            if not cst_col_area in cst.columns: # then we need to populate the id
+                cst[cst_col_area] = cst.to_crs(epsg=6933).area / 1e6
+            # drop FID column
+            cst = cst.drop(columns = ['FID'])
+            # return
+            return cst
+
+        def add_cat_only_comids_to_riv(riv: pd.DataFrame, cat: pd.DataFrame):
+            riv = riv.copy()
+            cat = cat.copy()
+
+            # Ensure consistent COMID type
+            riv["COMID"] = riv["COMID"].astype(int)
+            cat["COMID"] = cat["COMID"].astype(int)
+
+            # -----------------------------
+            # 1. Identify CAT-only COMIDs
+            # -----------------------------
+            missing_comids = sorted(set(cat["COMID"]) - set(riv["COMID"]))
+            if not missing_comids:
+                return riv
+
+            # -----------------------------
+            # 2. Create empty riv rows
+            # -----------------------------
+            new_rows = pd.DataFrame(index=range(len(missing_comids)), columns=riv.columns)
+            new_rows["COMID"] = missing_comids
+
+            # -----------------------------
+            # 3. Transfer unitarea → uparea
+            # -----------------------------
+            unitarea_map = cat.set_index("COMID")["unitarea"].astype(float)
+            new_rows["uparea"] = new_rows["COMID"].map(unitarea_map)
+
+            # -----------------------------
+            # 4. Set topology defaults
+            # -----------------------------
+            new_rows["NextDownID"] = 0
+            new_rows["lengthkm"] = 0
+            new_rows["maxup"] = 0
+
+            # up* columns EXCEPT uparea
+            up_cols = [
+                c for c in riv.columns
+                if c.lower().startswith("up") and c.lower() != "uparea"
+            ]
+            new_rows[up_cols] = 0
+
+            # -----------------------------
+            # 5. Append and sort
+            # -----------------------------
+            riv = pd.concat([riv, new_rows], ignore_index=True)
+            riv = riv.sort_values("COMID").reset_index(drop=True)
+
+            return riv
+
+        def fix_DownID(riv: pd.DataFrame) -> pd.DataFrame:
+            riv = riv.copy()
+
+            riv["COMID"] = riv["COMID"].astype(int)
+            riv["NextDownID"] = pd.to_numeric(
+                riv["NextDownID"], errors="coerce"
+            ).astype("Int64")
+
+            valid_comids = set(riv["COMID"])
+
+            invalid = (
+                riv["NextDownID"].notna()
+                & (
+                    (riv["NextDownID"] <= 0)
+                    | ~riv["NextDownID"].isin(valid_comids)
+                )
+            )
+
+            riv.loc[invalid, "NextDownID"] = -9999
+            return riv
+
+        # read files cat, riv, cst
+        riv = gpd.read_file(os.path.join(riv_file_template.replace('*', pfaf)))
+        cat = gpd.read_file(os.path.join(cat_file_template.replace('*', pfaf)))
+        # check the length of riv and cat
+        if len(riv) != len(cat):
+            raise error
+        if not cst_file_template is None:
+            cst = gpd.read_file(os.path.join(cst_file_template.replace('*', pfaf)))
+            # add cat and cst
+            cst = merit_cst_prepare(cst,
+                                    {'id':'COMID','area':'unitarea'},
+                                    cat = cat,
+                                    cat_col_id = 'COMID')
+        else:
+            cst = None
+        # merge the cat and cst
+        if not cst is None:
+            cat = gpd.GeoDataFrame(pd.concat([cat, cst]))
+        else:
+            cat = cat
+        # assign crs
+        cat.set_crs(epsg=4326, inplace=True, allow_override=True)
+        cat.reset_index(drop=True, inplace=True)
+        # sort COMID
+        riv.sort_values(by='COMID', axis='index', inplace=True)
+        riv.reset_index(drop=True, inplace=True)
+        # sort COMID
+        cat.sort_values(by='COMID', axis='index', inplace=True)
+        cat.reset_index(drop=True, inplace=True)
+        # set the projection
+        riv.set_crs(epsg=4326, inplace=True, allow_override=True)
+        cat.set_crs(epsg=4326, inplace=True, allow_override=True)
+        # fix the network topology
+        riv = add_cat_only_comids_to_riv(riv,cat)
+        # fix network topology
+        riv = fix_DownID(riv)
+        # return
+        return riv, cat
+
+
+

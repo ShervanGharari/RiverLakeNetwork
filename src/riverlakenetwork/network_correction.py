@@ -12,9 +12,10 @@ class NetworkTopologyCorrection:
         self,
         cat: gpd.GeoDataFrame,
         lake: gpd.GeoDataFrame,
-        riv: gpd.GeoDataFrame):
+        riv: gpd.GeoDataFrame,
+        network_clean_up_flag: bool=True):
 
-        riv, cat, lake = self._riv_topology_correction(riv, cat, lake)
+        riv, cat, lake = self._riv_topology_correction(riv, cat, lake, network_clean_up_flag=network_clean_up_flag)
 
         self.cat_corrected = cat
         self.riv_corrected = riv
@@ -94,11 +95,111 @@ class NetworkTopologyCorrection:
         riv = riv.drop(columns=["length_org"])
         return riv
 
+    def _clean_up(self, riv, cat):
+        """
+        Remove river and catchment COMIDs that are fully submerged by lakes.
 
-    def _riv_topology_correction(self, riv, cat, lake):
+        Case A (river under lake):
+          - length == 0
+          - inflow == 1
+          - inoutflow != 1
+          - maxup == 0
+          - downstream COMID exists and is a lake
+          - unitarea == 0
+
+        Case B (hillslope under lake):
+          - geometry is None
+          - unitarea == 0
+
+        Rows are removed from BOTH riv and cat.
+        """
+
+        riv = riv.copy()
+        cat = cat.copy()
+
+        # --------------------------------------------------
+        # 0. Basic consistency check
+        # --------------------------------------------------
+        riv["COMID"] = riv["COMID"].astype(int)
+        cat["COMID"] = cat["COMID"].astype(int)
+
+        if set(riv["COMID"]) != set(cat["COMID"]):
+            raise ValueError("riv and cat COMID sets must match before cleanup")
+
+        # --------------------------------------------------
+        # 1. Merge CAT unitarea into riv (fast lookup)
+        # --------------------------------------------------
+        if "unitarea" not in riv.columns:
+            riv = riv.merge(
+                cat[["COMID", "unitarea"]],
+                on="COMID",
+                how="left",
+                validate="one_to_one",
+            )
+
+        # --------------------------------------------------
+        # 2. Identify downstream-lake condition (SAFE)
+        # --------------------------------------------------
+        islake_map = riv.set_index("COMID")["islake"]
+
+        downstream_is_lake = (
+            riv["NextDownCOMID"].notna()
+            & (riv["NextDownCOMID"] > 0)
+            & (riv["NextDownCOMID"].map(islake_map) == 1)
+        )
+
+        # --------------------------------------------------
+        # 3. Case A — river fully under lake
+        # --------------------------------------------------
+        river_under_lake = (
+            (riv["length"] == 0)
+            & (riv["inflow"] == 1)
+            & (riv["inoutflow"] != 1)
+            & (riv["maxup"] == 0)
+            & downstream_is_lake
+            & (riv["unitarea"] == 0)
+        )
+
+        # --------------------------------------------------
+        # 4. Case B — hillslope-only under lake
+        # --------------------------------------------------
+        hillslope_under_lake = (
+            riv["geometry"].isna()
+            & (riv["unitarea"] == 0)
+        )
+
+        # --------------------------------------------------
+        # 5. Final removal set  ✅ OR (not AND!)
+        # --------------------------------------------------
+        remove_mask = river_under_lake & hillslope_under_lake
+        remove_comids = set(riv.loc[remove_mask, "COMID"])
+
+        if not remove_comids:
+            return riv, cat
+
+        # --------------------------------------------------
+        # 6. Remove from BOTH riv and cat
+        # --------------------------------------------------
+        riv = riv.loc[~riv["COMID"].isin(remove_comids)].reset_index(drop=True)
+        cat = cat.loc[~cat["COMID"].isin(remove_comids)].reset_index(drop=True)
+
+        # --------------------------------------------------
+        # 7. Final safety checks
+        # --------------------------------------------------
+        if set(riv["COMID"]) != set(cat["COMID"]):
+            raise ValueError("Cleanup failed: riv and cat COMID sets differ")
+
+        if len(riv) != len(cat):
+            raise ValueError("Cleanup failed: riv and cat lengths differ")
+
+        return riv, cat
+
+
+
+
+    def _riv_topology_correction(self, riv, cat, lake, network_clean_up_flag: bool=True):
         """
         Build lake–river hydraulic topology using explicit exhoreic/endorheic flag.
-
         Steps:
         1. Intersect lakes with rivers.
         2. Sort lakes by min/max uparea.
@@ -265,12 +366,15 @@ class NetworkTopologyCorrection:
         riv["unitarea"] = riv["unitarea"].fillna(0)
         # add the inoutflow
         riv["inoutflow"] = ((riv["inflow"] == 1) & (riv["outflow"] == 1)).astype(int)
-        # add clean up here, remove the subbasin and riv that are fully under lake
-        # both their cat area and length are set to zero
-        # this does not apply to inoutflow segments
+        # clean up
+        if network_clean_up_flag:
+            riv = Utility.add_immediate_upstream (riv, mapping = {'id':'COMID','next_id':'NextDownCOMID'})
+            riv, cat = self._clean_up(riv, cat)
         # (re)compute uparea
+        print(riv)
         riv = Utility.compute_uparea(riv)
         # add immediate upstream
+        print(riv)
         riv = Utility.add_immediate_upstream (riv, mapping = {'id':'COMID','next_id':'NextDownCOMID'})
         # return
         return riv, cat, lake

@@ -14,7 +14,6 @@ class InputChecker:
                  lake=None, lake_dict=None):
         """
         Initialize DataChecker.
-
         Parameters
         ----------
         loaded_data : object, optional
@@ -25,7 +24,6 @@ class InputChecker:
         riv_dict, cat_dict, lake_dict : dict, optional
             Corresponding dictionaries.
         """
-
         if loaded_data is not None:
             self.riv = getattr(loaded_data, "riv", None)
             self.riv_dict = getattr(loaded_data, "riv_dict", {}) or {}
@@ -40,7 +38,6 @@ class InputChecker:
             self.cat_dict = cat_dict or {}
             self.lake = lake
             self.lake_dict = lake_dict or {}
-
         # Make copies to avoid modifying original data
         if self.riv is not None:
             self.riv = self.riv.copy()
@@ -48,7 +45,6 @@ class InputChecker:
             self.cat = self.cat.copy()
         if self.lake is not None:
             self.lake = self.lake.copy()
-
         # Run the fucntion
         self._check_riv_attr()
         self._check_cat_attr()
@@ -83,17 +79,13 @@ class InputChecker:
         keep_cols = list(rename_map.keys()) + (["geometry"] if geom_required else [])
         gdf = gdf[keep_cols].rename(columns=rename_map)
         setattr(self, gdf_name, gdf)
-
     # Then your specific checks become one-liners:
     def _check_riv_attr(self):
         self._check_gdf_attr("riv", "riv_dict", ["COMID", "NextDownCOMID", "length", "uparea"])
-
     def _check_cat_attr(self):
         self._check_gdf_attr("cat", "cat_dict", ["COMID", "unitarea"])
-
     def _check_lake_attr(self):
         self._check_gdf_attr("lake", "lake_dict", ["LakeCOMID", "unitarea"])
-
     def _check_COMIDs(self):
         """
         Check that COMIDs in rivers and subbasins match, have same length,
@@ -101,15 +93,12 @@ class InputChecker:
         """
         if self.riv is None or self.cat is None:
             raise ValueError("Both riv and cat GeoDataFrames must be loaded to check COMIDs.")
-
         # Extract COMID series
         riv_COMIDs = self.riv['COMID']
         cat_COMIDs = self.cat['COMID']
-
         # Check lengths
         if len(riv_COMIDs) != len(cat_COMIDs):
             raise ValueError(f"Length mismatch: riv has {len(riv_COMIDs)}, cat has {len(cat_COMIDs)}")
-
         # Check exact matching
         if not set(riv_COMIDs) == set(cat_COMIDs):
             missing_in_riv = set(cat_COMIDs) - set(riv_COMIDs)
@@ -119,7 +108,6 @@ class InputChecker:
                 f"Missing in riv: {missing_in_riv}\n"
                 f"Missing in cat: {missing_in_cat}"
             )
-
         # Sort both GeoDataFrames by COMID
         self.riv = self.riv.sort_values('COMID').reset_index(drop=True)
         self.cat = self.cat.sort_values('COMID').reset_index(drop=True)
@@ -175,7 +163,6 @@ class InputChecker:
         """
         Check that CRS is set for riv, cat, and lake (if provided)
         and that they are identical.
-
         Parameters
         ----------
         suppress : bool, optional

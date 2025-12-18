@@ -11,7 +11,8 @@ class ResolvableLakes:
         cat: gpd.GeoDataFrame,
         lake: gpd.GeoDataFrame,
         riv: gpd.GeoDataFrame,
-        margin: float = 2.0):
+        lake_subset_margin: float = 2.0,
+        force_one_lake_per_riv_seg_flag: bool = False):
         """
         Full workflow for computing resolvable lakes:
             1. Subset lakes spatially (subset to study area)
@@ -22,7 +23,7 @@ class ResolvableLakes:
             6. Filter the lake layer to keep only lakes that remain
         """
         # --- Step 1: spatial subset of lakes ---
-        lake_subset = self._subset_lake(cat, lake, margin)
+        lake_subset = self._subset_lake(cat, lake, lake_subset_margin)
         print(f"==== Number of lakes after subsetting: {len(lake_subset)} ====")
         # --- Step 2: remove lakes contained in only one catchment ---
         lake_cleaned = self._remove_inbasin_lakes(cat, lake_subset)
@@ -39,8 +40,9 @@ class ResolvableLakes:
         print(f"==== Number of lakes after removing lakes that do have exactly the same uparea for their maximume uparea for various: {len(lake_cleaned)} ====")
         lake_cleaned, river_lake_int_filtered = self._supress_number_of_lakes_to_two_per_riv_segment(lake_cleaned, river_lake_int_filtered, riv)
         print(f"==== Number of lakes after removing lakes from segments that intersect with more than 3 lakes: {len(lake_cleaned)} ====")
-        #lake_cleaned, river_lake_int_filtered = self._enforce_one_lake_per_river_segment(lake_cleaned, river_lake_int_filtered)
-        #print(f"==== Number of lakes after enforcing one lake per river segment: {len(lake_cleaned)} ====")
+        if force_one_lake_per_riv_seg_flag:
+            lake_cleaned, river_lake_int_filtered = self._enforce_one_lake_per_river_segment(lake_cleaned, river_lake_int_filtered)
+            print(f"==== Number of lakes after enforcing one lake per river segment: {len(lake_cleaned)} ====")
         lake_cleaned, river_lake_int_filtered = self._identify_lake_type(lake_cleaned, river_lake_int_filtered, riv)
         print(f"==== Number of lakes after identifying the graph number within a lake: {len(lake_cleaned)} ====")
         # --- Save final output ---

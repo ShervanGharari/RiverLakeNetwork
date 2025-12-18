@@ -14,7 +14,11 @@ from .utility import Utility
 
 class BurnLakes:
 
-    def __init__(self, config: dict):
+    def __init__(self,
+        config: dict,
+        lake_subset_margin: float=2.00,
+        network_clean_up_flag: bool=True,
+        force_one_lake_per_riv_seg_flag: bool=False):
 
         self.config = config
 
@@ -70,7 +74,8 @@ class BurnLakes:
             cat=self.cat,
             riv=self.riv,
             lake=self.lake,
-            margin=2.0
+            lake_subset_margin=lake_subset_margin,
+            force_one_lake_per_riv_seg_flag=force_one_lake_per_riv_seg_flag
         )
         self.lake = resolver.lake_resolvable
         del resolver
@@ -88,7 +93,8 @@ class BurnLakes:
         corrector = NetworkTopologyCorrection(
             cat=self.cat,
             riv=self.riv,
-            lake=self.lake
+            lake=self.lake,
+            network_clean_up_flag=network_clean_up_flag
         )
         self.cat, self.riv, self.lake = corrector.cat_corrected, corrector.riv_corrected, corrector.lake_corrected
         del corrector
@@ -103,8 +109,6 @@ class BurnLakes:
         t0 = datetime.now()
         print("=============================================================================")
         print("=== Output checker started at :", t0.strftime("%Y-%m-%d %H:%M:%S"), " =======")
-        print(self.riv)
-        print(self.riv_org)
         OutputChecker(
             riv=self.riv,
             riv_org=self.riv_org,
