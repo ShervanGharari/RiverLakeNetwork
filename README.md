@@ -170,9 +170,11 @@ The workflow is **iterative by design**, allowing refinement until the desired r
 
 The repository includes several worked examples demonstrating how lakes and reservoirs are burned into different river network topologies and how resolvable lakes are identified based on river network density.
 
-- **Example 1 – Marti Basins with HydroRIVERS and HydroLAKES**
-  Demonstrates integration of HydroLAKES into a HydroRIVERS-based river network for the Marti basins.
+- **Example 1 – MERITBasins with HydroLAKES**
+  Demonstrates integration of HydroLAKES into a MERITBasins river network.
   [./examples/Example01_MERITBasinsHydroLAKES.ipynb](./examples/Example01_MERITBasinsHydroLAKES.ipynb)
+
+![Comparison of above examples](./examples/plot/Figure_1.png)
 
 ---
 
