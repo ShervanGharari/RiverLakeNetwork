@@ -172,7 +172,7 @@ The repository includes several worked examples demonstrating how lakes and rese
 
 - **Example 1 – Marti Basins with HydroRIVERS and HydroLAKES**
   Demonstrates integration of HydroLAKES into a HydroRIVERS-based river network for the Marti basins.
-  [./examples/Example01_MartiBasins_HydroRIVERS_HydroLAKES/](./examples/Example01_MartiBasins_HydroRIVERS_HydroLAKES/)
+  [./examples/Example01_MERITBasinsHydroLAKES.ipynb](./examples/Example01_MERITBasinsHydroLAKES.ipynb)
 
 ---
 
