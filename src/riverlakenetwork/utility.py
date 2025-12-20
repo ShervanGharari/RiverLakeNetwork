@@ -194,6 +194,78 @@ class Utility:
 
         return len(sample_components), [set(comp) for comp in sample_components]
 
+    def FixHydroLAKESv1(lake_shp, lake_to_remove=None, merge_lakes=None):
+        """
+        Remove specified lakes and merge selected lakes in the HydroLAKES dataset.
+
+        Parameters
+        ----------
+        lake_shp : GeoDataFrame
+            HydroLAKES shapefile with lake attributes.
+        lake_to_remove : list, optional
+            List of Hylak_id to remove from the dataset.
+        merge_lakes : dict, optional
+            Dictionary specifying lakes to merge.
+            Keys: new lake name
+            Values: list of Hylak_id to merge
+
+            Example:
+            merge_lakes = {
+                "Michigan+Huron": [6, 8],
+                "OtherLake": [101, 102]
+            }
+
+        Returns
+        -------
+        GeoDataFrame
+            Updated lake shapefile.
+        """
+        import geopandas as gpd
+
+        # ---------------------------
+        # Remove lakes if specified
+        # ---------------------------
+        if lake_to_remove:
+            lake_shp = lake_shp[~lake_shp["Hylak_id"].isin(lake_to_remove)].reset_index(drop=True)
+
+        # ---------------------------
+        # Merge lakes if specified
+        # ---------------------------
+        if merge_lakes:
+            for new_name, ids_to_merge in merge_lakes.items():
+                # Select lakes to merge
+                shp_slice = lake_shp[lake_shp["Hylak_id"].isin(ids_to_merge)].copy()
+                if shp_slice.empty:
+                    continue
+
+                # Fix potential geometry issues with small buffer
+                shp_slice.geometry = shp_slice.geometry.buffer(0.00001)
+
+                # Dissolve into one geometry
+                shp_dissolve = shp_slice.dissolve().reset_index(drop=True)
+
+                # Update the first lake in the list with merged values
+                target_idx = lake_shp[lake_shp["Hylak_id"] == ids_to_merge[-1]].index
+                lake_shp.loc[target_idx, "geometry"] = shp_dissolve.geometry.iloc[0]
+                lake_shp.loc[target_idx, "Lake_name"] = new_name
+                lake_shp.loc[target_idx, "Lake_area"] = shp_slice["Lake_area"].sum()
+                lake_shp.loc[target_idx, "Vol_total"] = shp_slice["Vol_total"].sum()
+                lake_shp.loc[target_idx, "Shore_len"] = shp_slice["Shore_len"].sum()
+                lake_shp.loc[target_idx, "Depth_avg"] = shp_slice["Depth_avg"].mean()
+                lake_shp.loc[target_idx, "Dis_avg"] = shp_slice["Dis_avg"].mean()
+                lake_shp.loc[target_idx, "Res_time"] = shp_slice["Res_time"].mean()
+                lake_shp.loc[target_idx, "Country"] = shp_slice["Country"].iloc[0]  # take first value
+                lake_shp.loc[target_idx, "Continent"] = shp_slice["Continent"].iloc[0]
+                lake_shp.loc[target_idx, "Poly_src"] = shp_slice["Poly_src"].iloc[0]
+                lake_shp.loc[target_idx, "Lake_type"] = 1
+                lake_shp.loc[target_idx, "Grand_id"] = 0
+
+                # Drop all other merged lakes except the last one
+                drop_ids = [i for i in ids_to_merge if i != ids_to_merge[-1]]
+                lake_shp = lake_shp[~lake_shp["Hylak_id"].isin(drop_ids)].reset_index(drop=True)
+
+        return lake_shp
+
 
 
     def merit_read_file (pfaf: str,
