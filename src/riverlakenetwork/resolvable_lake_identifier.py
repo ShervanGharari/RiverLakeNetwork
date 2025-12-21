@@ -1,5 +1,6 @@
 import geopandas as gpd
 from   shapely.geometry import Point, LineString
+from   shapely.ops import unary_union
 import pandas as pd
 from   .utility import Utility   # adjust path if needed
 
@@ -81,11 +82,34 @@ class ResolvableLakes:
             (lake["x"] >= minx) & (lake["x"] <= maxx) &
             (lake["y"] >= miny) & (lake["y"] <= maxy)
         ]
-        # --- 4. Spatial intersection with catchments ---
+        # --- 4a. Spatial intersection with catchments ---
         intersected = gpd.sjoin(lake_filtered, cat, how="inner", predicate="intersects")
         # print(intersected.columns)
         lake_ids = intersected["LakeCOMID"].unique()
         lake_subset = lake_filtered[lake_filtered["LakeCOMID"].isin(lake_ids)].reset_index(drop=True)
+        # # --- 4b. Enforce containment within overall catchment boundary ---
+        # kept_idx = []
+        # for idx, lake_row in lake_subset.iterrows():
+        #     lake_geom = lake_row.geometry
+        #     #print(idx)
+        #     # Find catchments from original cat that intersect this lake
+        #     cat_slice = gpd.sjoin(
+        #         cat,
+        #         gpd.GeoDataFrame(geometry=[lake_geom], crs=cat.crs),
+        #         how="inner",
+        #         predicate="intersects")
+        #     if cat_slice.empty:
+        #         continue  # skip this lake
+        #     # Union the intersecting catchments
+        #     cat_slice_union = unary_union(cat_slice.geometry)
+        #     # Keep the lake only if fully within this local union
+        #     if lake_geom.within(cat_slice_union):
+        #         kept_idx.append(idx)
+        # # Subset lake_subset to only the kept lakes
+        # lake_subset = lake_subset.loc[kept_idx].reset_index(drop=True)
+        # # ------------------------------------------------------------------
+        # # Alternatively 4b can be speed up by intersection and difference and
+        # # lakes that are outside can be removed fully
         # Keep only the relevant columns
         final_cols = ["LakeCOMID", "unitarea", "geometry"]
         missing = [c for c in final_cols if c not in lake_subset.columns]
