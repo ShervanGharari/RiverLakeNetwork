@@ -1,6 +1,7 @@
 import pandas as pd
 from collections import defaultdict
 import warnings
+from .utility import Utility
 
 
 class OutputChecker:
@@ -19,7 +20,7 @@ class OutputChecker:
         self.lake = lake
         self._check_lake_outlet_graph_simple()
         self._check_inoutflow_length()
-        self._check_network_loops()
+        has_loop = Utility.check_network_loops(riv=self.riv, comid_col="COMID", next_col="NextDownCOMID")
 
     # --------------------------------------------------
     # Internal helpers
@@ -322,47 +323,6 @@ class OutputChecker:
         print(violations)
 
         # return violations, sorted(lid for lid in violated_lake_ids if pd.notna(lid))
-
-    def _check_network_loops(
-        self,
-        comid_col="COMID",
-        next_col="NextDownCOMID",
-    ):
-        """
-        Check for loops in a river network and print status.
-        """
-        riv = self.riv
-        df = riv[[comid_col, next_col]].copy()
-        df = df[df[next_col].notna()]
-        next_map = dict(zip(df[comid_col], df[next_col]))
-        visited_global = set()
-        loops = []
-        for start in next_map:
-            if start in visited_global:
-                continue
-            visited_local = {}
-            path = []
-            current = start
-            while current in next_map:
-                # --- LOOP DETECTION (local path only) ---
-                if current in visited_local:
-                    idx = visited_local[current]
-                    loop = path[idx:]
-                    loops.append(loop)
-                    break
-                visited_local[current] = len(path)
-                path.append(current)
-                current = next_map[current]
-            # mark everything we touched as globally visited
-            visited_global.update(path)
-        has_loop = len(loops) > 0
-        if has_loop:
-            print("❌ Loop detected in network topology")
-            for loop in loops:
-                print("  Loop:", " → ".join(map(str, loop)))
-        else:
-            print("✅ No loop detected in network topology")
-        # return has_loop, loops
 
     def _check_inoutflow_length(self, tol=1e-6):
         """

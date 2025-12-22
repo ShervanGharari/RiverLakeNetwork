@@ -1,4 +1,5 @@
 import geopandas as gpd
+from .utility import Utility
 
 class InputChecker:
     """
@@ -52,6 +53,10 @@ class InputChecker:
         self._check_COMIDs()
         self._check_area_units()
         self._check_crs(suppress=False)
+        has_loop = Utility.check_network_loops(riv=self.riv, comid_col="COMID", next_col="NextDownCOMID")
+        if has_loop:
+            raise ValueError("River network topology error: loop detected "
+                "(a reach routes back to itself through downstream links).")
 
     # -------------------------------
     # Specific dictionary checks

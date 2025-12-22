@@ -1,5 +1,5 @@
 import geopandas as gpd
-from   shapely.geometry import Point, LineString
+from   shapely.geometry import Point, LineString, MultiLineString
 from   shapely.ops import unary_union
 import pandas as pd
 from   .utility import Utility   # adjust path if needed
@@ -173,10 +173,30 @@ class ResolvableLakes:
         # Remove null or empty geometries
         riv = riv[riv.geometry.notnull() & ~riv.geometry.is_empty].reset_index(drop=True)
         # Extract start and end points safely
+        # def get_start_pt(g):
+        #     return Point(g.coords[0]) if g and g.coords else None
+        # def get_end_pt(g):
+        #     return Point(g.coords[-1]) if g and g.coords else None
         def get_start_pt(g):
-            return Point(g.coords[0]) if g and g.coords else None
+            if g is None or g.is_empty:
+                return None
+            if isinstance(g, LineString):
+                return Point(g.coords[0])
+            if isinstance(g, MultiLineString):
+                # take first coordinate of first line
+                first_line = list(g.geoms)[0]
+                return Point(first_line.coords[0])
+            return None
         def get_end_pt(g):
-            return Point(g.coords[-1]) if g and g.coords else None
+            if g is None or g.is_empty:
+                return None
+            if isinstance(g, LineString):
+                return Point(g.coords[-1])
+            if isinstance(g, MultiLineString):
+                # take last coordinate of last line
+                last_line = list(g.geoms)[-1]
+                return Point(last_line.coords[-1])
+            return None
         riv["start_pt"] = riv.geometry.apply(get_start_pt)
         riv["end_pt"]   = riv.geometry.apply(get_end_pt)
         # Convert start/end points to GeoDataFrames
@@ -214,10 +234,30 @@ class ResolvableLakes:
         # Remove null or empty geometries
         riv = riv[riv.geometry.notnull() & ~riv.geometry.is_empty].reset_index(drop=True)
         # Extract start and end points safely
+        # def get_start_pt(g):
+        #     return Point(g.coords[0]) if g and g.coords else None
+        # def get_end_pt(g):
+        #     return Point(g.coords[-1]) if g and g.coords else None
         def get_start_pt(g):
-            return Point(g.coords[0]) if g and g.coords else None
+            if g is None or g.is_empty:
+                return None
+            if isinstance(g, LineString):
+                return Point(g.coords[0])
+            if isinstance(g, MultiLineString):
+                # take first coordinate of first line
+                first_line = list(g.geoms)[0]
+                return Point(first_line.coords[0])
+            return None
         def get_end_pt(g):
-            return Point(g.coords[-1]) if g and g.coords else None
+            if g is None or g.is_empty:
+                return None
+            if isinstance(g, LineString):
+                return Point(g.coords[-1])
+            if isinstance(g, MultiLineString):
+                # take last coordinate of last line
+                last_line = list(g.geoms)[-1]
+                return Point(last_line.coords[-1])
+            return None
         riv["start_pt"] = riv.geometry.apply(get_start_pt)
         riv["end_pt"]   = riv.geometry.apply(get_end_pt)
         # Convert start/end points to GeoDataFrames

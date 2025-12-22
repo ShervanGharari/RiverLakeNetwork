@@ -266,7 +266,44 @@ class Utility:
 
         return lake_shp
 
-
+    def check_network_loops(
+        riv,
+        comid_col="COMID",
+        next_col="NextDownCOMID"):
+        """
+        Check for loops in a river network and print status.
+        """
+        df = riv[[comid_col, next_col]].copy()
+        df = df[df[next_col].notna()]
+        next_map = dict(zip(df[comid_col], df[next_col]))
+        visited_global = set()
+        loops = []
+        for start in next_map:
+            if start in visited_global:
+                continue
+            visited_local = {}
+            path = []
+            current = start
+            while current in next_map:
+                # --- LOOP DETECTION (local path only) ---
+                if current in visited_local:
+                    idx = visited_local[current]
+                    loop = path[idx:]
+                    loops.append(loop)
+                    break
+                visited_local[current] = len(path)
+                path.append(current)
+                current = next_map[current]
+            # mark everything we touched as globally visited
+            visited_global.update(path)
+        has_loop = len(loops) > 0
+        if has_loop:
+            print("❌ Loop detected in network topology")
+            for loop in loops:
+                print("  Loop:", " → ".join(map(str, loop)))
+        else:
+            print("✅ No loop detected in network topology")
+        return has_loop #, loops
 
     def merit_read_file (pfaf: str,
                          riv_file_template: str,
@@ -424,5 +461,63 @@ class Utility:
         # return
         return riv, cat
 
-
-
+    def hdma_read_file(region: str,
+            riv_file_template: str,
+            cat_file_template: str):
+        def fix_DownID(riv: pd.DataFrame) -> pd.DataFrame:
+            riv = riv.copy()
+            riv["seg_id"] = riv["seg_id"].astype(int)
+            riv["Tosegment"] = pd.to_numeric(
+                riv["Tosegment"], errors="coerce"
+            ).astype("Int64")
+            valid_comids = set(riv["seg_id"])
+            invalid = (
+                riv["Tosegment"].notna()
+                & (
+                    (riv["Tosegment"] <= 0)
+                    | ~riv["Tosegment"].isin(valid_comids)
+                )
+            )
+            riv.loc[invalid, "Tosegment"] = -9999
+            return riv
+        # read files cat, riv, cst
+        riv = gpd.read_file(os.path.join(riv_file_template.replace('*', region)))
+        cat = gpd.read_file(os.path.join(cat_file_template.replace('*', region)))
+        # sync the riv and cat
+        riv_ids = set(riv["seg_id"].dropna())
+        cat_ids = set(cat["hruid"].dropna())
+        shared_ids = riv_ids.intersection(cat_ids)
+        riv = riv[riv["seg_id"].isin(shared_ids)].reset_index(drop=True)
+        cat = cat[cat["hruid"].isin(cat_ids)].reset_index(drop=True)
+        missing_riv_ids = cat_ids - riv_ids
+        if missing_riv_ids:
+            new_riv_rows = []
+            for _, row in cat[cat["hruid"].isin(missing_riv_ids)].iterrows():
+                new_riv_rows.append({
+                    "seg_id": row["hruid"],
+                    "Tosegment": -9999,
+                    "Length": 0.0,
+                    "geometry": None
+                })
+            new_riv = gpd.GeoDataFrame(
+                new_riv_rows,
+                geometry="geometry",
+                crs=riv.crs
+            )
+            riv = pd.concat([riv, new_riv], ignore_index=True)
+        # ------------------------------------------------------------------
+        # riv and cat are now synchronized
+        # ------------------------------------------------------------------
+        # sort seg_id
+        riv.sort_values(by='seg_id', axis='index', inplace=True)
+        riv.reset_index(drop=True, inplace=True)
+        # sort hruid
+        cat.sort_values(by='hruid', axis='index', inplace=True)
+        cat.reset_index(drop=True, inplace=True)
+        # set the projection
+        riv.set_crs(epsg=4326, inplace=True, allow_override=True)
+        cat.set_crs(epsg=4326, inplace=True, allow_override=True)
+        # fix network topology
+        riv = fix_DownID(riv)
+        # return
+        return riv, cat
