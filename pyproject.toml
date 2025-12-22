@@ -1,0 +1,74 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+
+[project]
+name = "riverlakenetwork"
+version = "0.1.0"
+description = "Tools for river–lake network topology construction and validation"
+readme = "README.md"
+requires-python = ">=3.8"
+
+authors = [
+  { name = "Shervan Gharari", email = "sh.gharari@gmail.com" }
+]
+
+license = { text = "GPL-3.0-only" }
+
+keywords = [
+  "hydrology",
+  "river network",
+  "lake network",
+  "topology",
+  "geospatial",
+]
+
+classifiers = [
+  "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Intended Audience :: Science/Research",
+  "Topic :: Scientific/Engineering :: Hydrology",
+]
+
+dependencies = [
+  "numpy",
+  "pandas",
+  "geopandas",
+  "shapely",
+  "networkx",
+  "pyyaml",
+]
+
+
+[project.optional-dependencies]
+plot = [
+  "matplotlib",
+]
+
+dev = [
+  "pytest",
+  "black",
+  "isort",
+  "flake8",
+  "build",
+  "twine",
+]
+
+
+[project.urls]
+Homepage = "https://github.com/ShervanGharari/RiverLakeNetwork"
+Repository = "https://github.com/ShervanGharari/RiverLakeNetwork"
+Issues = "https://github.com/ShervanGharari/RiverLakeNetwork/issues"
+
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+
+[tool.setuptools.packages.find]
+where = ["src"]
