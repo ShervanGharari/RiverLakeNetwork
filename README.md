@@ -120,8 +120,8 @@ LakeID, unitarea, geometry
 ### Local Installation
 
 ```
-git clone https://github.com/<username>/riverlakenetwork.git
-cd riverlakenetwork
+git clone https://github.com/ShervanGharari/RiverLakeNetwork.git
+cd RiverLakeNetwork
 pip install .
 ```
 
