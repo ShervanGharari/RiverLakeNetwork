@@ -102,7 +102,7 @@ Each lake or reservoir must include:
 | Column | Description |
 |------|-------------|
 | `LakeID` | Unique lake/reservoir identifier (e.g., 100, 200) |
-| `unitarea` | Lake surface area |
+| `unitarea` | Lake surface area (should be the same unit as subbasin area) |
 | `geometry` | Polygon geometry |
 
 #### Example `lake`
@@ -170,9 +170,17 @@ The workflow is **iterative by design**, allowing refinement until the desired r
 
 The repository includes several worked examples demonstrating how lakes and reservoirs are burned into different river network topologies and how resolvable lakes are identified based on river network density.
 
-- **Example 1 – MERITBasins with HydroLAKES**
+- **Example 1 – MERIT-derived river network with HydroLAKES**
+  Demonstrates integration of HydroLAKES into a locally created river network based on MERIT-hydro DEM.
+  [./examples/Example01_MERITDerivedHydroLAKES.ipynb](./examples/Example01_MERITDerivedHydroLAKES.ipynb)
+
+- **Example 2 – HDMA with HydroLAKES**
+  Demonstrates integration of HydroLAKES into a HDMA river network.
+  [./examples/Example02_HDMAHydroLAKES.ipynb](./examples/Example02_HDMAHydroLAKES.ipynb)
+
+- **Example 3 – MERITBasins with HydroLAKES**
   Demonstrates integration of HydroLAKES into a MERITBasins river network.
-  [./examples/Example01_MERITBasinsHydroLAKES.ipynb](./examples/Example01_MERITBasinsHydroLAKES.ipynb)
+  [./examples/Example03_MERITBasinsHydroLAKES.ipynb](./examples/Example03_MERITBasinsHydroLAKES.ipynb)
 
 ![Comparison of above examples](./examples/Plots/Figure_1.png)
 
