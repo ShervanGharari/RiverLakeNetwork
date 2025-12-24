@@ -380,5 +380,14 @@ class NetworkTopologyCorrection:
         # add immediate upstream
         #print(riv)
         riv = Utility.add_immediate_upstream (riv, mapping = {'id':'COMID','next_id':'NextDownCOMID'})
+        # add coastal
+        riv, cat = Utility.identify_non_channelized(riv,
+            cat,
+            riv_dict={"id": "COMID",
+            "next_id": "NextDownCOMID",
+            "length": "length",
+            "geometry": "geometry",
+            "islake": "islake"},
+            cat_dict={"id": "COMID"})
         # return
         return riv, cat, lake
