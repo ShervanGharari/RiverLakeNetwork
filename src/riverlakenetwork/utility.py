@@ -118,6 +118,7 @@ class Utility:
 
         return df
 
+    @staticmethod
     def add_immediate_upstream (df,
                                 mapping = {'id':'LINKNO','next_id':'DSLINKNO'}):
 
@@ -194,6 +195,76 @@ class Utility:
 
         return len(sample_components), [set(comp) for comp in sample_components]
 
+    @staticmethod
+    def identify_non_channelized(
+        riv,
+        cat,
+        riv_dict={
+            "id": "COMID",
+            "next_id": "NextDownCOMID",
+            "length": "length",
+            "geometry": "geometry",
+            "islake": "islake"},
+        cat_dict={"id": "COMID"}):
+        # --------------------------
+        # Resolve column names
+        # --------------------------
+        rid = riv_dict["id"]
+        next_id_col = riv_dict["next_id"]
+        length_col = riv_dict["length"]
+        geom_col = riv_dict["geometry"]
+        islake_col = riv_dict.get("islake", None)
+        cid = cat_dict["id"]
+        # --------------------------
+        # Sort & align
+        # --------------------------
+        riv = riv.sort_values(rid).reset_index(drop=True)
+        cat = cat.sort_values(cid).reset_index(drop=True)
+        if len(riv) != len(cat):
+            raise ValueError("riv and cat must have the same number of rows")
+        if not (riv[rid].values == cat[cid].values).all():
+            raise ValueError("riv and cat COMID columns are not identical after sorting")
+        # --------------------------
+        # Compute local upstream (TEMP ONLY)
+        # --------------------------
+        local_maxup = Utility.add_immediate_upstream(
+            riv.copy(),
+            mapping={'id': rid, 'next_id': next_id_col})
+        # --------------------------
+        # Core conditions
+        # --------------------------
+        geom_missing = riv[geom_col].isna()
+        length_zero = riv[length_col].fillna(0) == 0
+        down_invalid = riv[next_id_col].fillna(-9999) <= 0
+        # --------------------------
+        # Detect downstream-to-lake (optional)
+        # --------------------------
+        if islake_col is not None and islake_col in riv.columns:
+            # map COMID -> islake
+            islake_map = riv.set_index(rid)[islake_col]
+            down_lake = riv[next_id_col].map(islake_map).fillna(0).astype(bool)
+        else:
+            down_lake = False  # scalar False, safely broadcast
+        # --------------------------
+        # Non-channelized definition
+        # --------------------------
+        non_channelized_mask = (
+            geom_missing &
+            length_zero &
+            (down_invalid | down_lake) &
+            (local_maxup["maxup"].fillna(0) == 0))
+        # --------------------------
+        # Assign flags ONLY (no topology mutation)
+        # --------------------------
+        riv = riv.copy()
+        cat = cat.copy()
+        riv["non_channelized"] = non_channelized_mask.astype(int)
+        cat["non_channelized"] = non_channelized_mask.astype(int)
+        # print(f"Non-channelized count: {riv['non_channelized'].sum()}")
+        return riv, cat
+
+
+    @staticmethod
     def FixHydroLAKESv1(lake_shp, lake_to_remove=None, merge_lakes=None):
         """
         Remove specified lakes and merge selected lakes in the HydroLAKES dataset.
@@ -266,6 +337,7 @@ class Utility:
 
         return lake_shp
 
+    @staticmethod
     def check_network_loops(
         riv,
         comid_col="COMID",
@@ -305,10 +377,12 @@ class Utility:
             print("✅ No loop detected in network topology")
         return has_loop #, loops
 
+    @staticmethod
     def merit_read_file (pfaf: str,
                          riv_file_template: str,
                          cat_file_template: str,
-                         cst_file_template: Optional [str] = None):
+                         cst_file_template: Optional [str] = None,
+                         identify_non_channelized=identify_non_channelized):
 
         # local function to read costal hillslope
         def merit_cst_prepare(
@@ -458,12 +532,21 @@ class Utility:
         riv = add_cat_only_comids_to_riv(riv,cat)
         # fix network topology
         riv = fix_DownID(riv)
+        # add the non_channelized
+        riv, cat =Utility.identify_non_channelized(riv, cat,
+            riv_dict={"id": "COMID",
+            "next_id": "NextDownID",
+            "length": "lengthkm",
+            "geometry": "geometry"},
+            cat_dict={"id": "COMID"})
         # return
         return riv, cat
 
+    @staticmethod
     def hdma_read_file(region: str,
             riv_file_template: str,
-            cat_file_template: str):
+            cat_file_template: str,
+            identify_non_channelized=identify_non_channelized):
         def fix_DownID(riv: pd.DataFrame) -> pd.DataFrame:
             riv = riv.copy()
             riv["seg_id"] = riv["seg_id"].astype(int)
@@ -519,5 +602,12 @@ class Utility:
         cat.set_crs(epsg=4326, inplace=True, allow_override=True)
         # fix network topology
         riv = fix_DownID(riv)
+        # add the non_channelized
+        riv, cat = Utility.identify_non_channelized(riv, cat,
+            riv_dict={"id": "seg_id",
+            "next_id": "Tosegment",
+            "length": "Length",
+            "geometry": "geometry"},
+            cat_dict={"id": "hruid"})
         # return
         return riv, cat
