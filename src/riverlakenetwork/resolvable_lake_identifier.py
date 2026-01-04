@@ -276,24 +276,89 @@ class ResolvableLakes:
         filtered_lake = lake[lake["LakeCOMID"].isin(keep_ids)].reset_index(drop=True)
         return filtered_lake
 
-    def _river_lake_intersection_info(self, riv: gpd.GeoDataFrame, lake: gpd.GeoDataFrame):
+    # def _river_lake_intersection_info(self,
+    #     riv: gpd.GeoDataFrame,
+    #     lake: gpd.GeoDataFrame):
+    #     """
+    #     Computes basic intersection summary between rivers and lakes.
+    #     Prints:
+    #       - number of lakes intersecting any river segment
+    #       - number of river segments intersecting >1 lake
+    #     """
+    #     river_lake_int = gpd.overlay(riv, lake, how="intersection")
+    #     num_lakes = river_lake_int["LakeCOMID"].nunique()
+    #     #print("Number of lakes in the intersection:", num_lakes)
+    #     m = (
+    #         river_lake_int.groupby("COMID")["LakeCOMID"]
+    #         .nunique()
+    #         .gt(1)
+    #         .sum()
+    #     )
+    #     #print("Number of river segments intersecting more than one lake:", m)
+    #     return river_lake_int
+
+    def _river_lake_intersection_info(
+        self,
+        riv: gpd.GeoDataFrame,
+        lake: gpd.GeoDataFrame,
+        ):
         """
         Computes basic intersection summary between rivers and lakes.
-        Prints:
+
+        - Drops river and lake features with null or empty geometries
+        - Computes river–lake intersections
+        - Returns the intersection GeoDataFrame
+
+        Prints (optional / downstream use):
           - number of lakes intersecting any river segment
           - number of river segments intersecting >1 lake
         """
-        river_lake_int = gpd.overlay(riv, lake, how="intersection")
+
+        # --------------------------------------------------
+        # 1. Drop invalid geometries (None or empty)
+        # --------------------------------------------------
+        riv_valid = riv[
+            riv.geometry.notna() & ~riv.geometry.is_empty
+        ].copy()
+
+        lake_valid = lake[
+            lake.geometry.notna() & ~lake.geometry.is_empty
+        ].copy()
+
+        # --------------------------------------------------
+        # 2. Short-circuit if nothing to intersect
+        # --------------------------------------------------
+        if riv_valid.empty or lake_valid.empty:
+            return gpd.GeoDataFrame(
+                columns=list(riv.columns) + list(lake.columns),
+                geometry=[],
+                crs=riv.crs
+            )
+
+        # --------------------------------------------------
+        # 3. Intersection
+        # --------------------------------------------------
+        river_lake_int = gpd.overlay(
+            riv_valid,
+            lake_valid,
+            how="intersection"
+        )
+
+        # --------------------------------------------------
+        # 4. Summary metrics (if needed)
+        # --------------------------------------------------
         num_lakes = river_lake_int["LakeCOMID"].nunique()
-        #print("Number of lakes in the intersection:", num_lakes)
-        m = (
-            river_lake_int.groupby("COMID")["LakeCOMID"]
+
+        multi_lake_riv = (
+            river_lake_int
+            .groupby("COMID")["LakeCOMID"]
             .nunique()
             .gt(1)
             .sum()
         )
-        #print("Number of river segments intersecting more than one lake:", m)
+
         return river_lake_int
+
 
     def _remove_lakes_int_with_one_river_segment(self,
                                                  lake: gpd.GeoDataFrame,
