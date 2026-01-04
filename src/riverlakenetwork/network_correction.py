@@ -24,7 +24,7 @@ class NetworkTopologyCorrection:
 
     def _cat_geometry_correction(self, cat: gpd.GeoDataFrame, lake: gpd.GeoDataFrame):
         """Correct CAT 'unitarea' after removing lake-covered areas; replace geometry with difference geometry when partially removed and keep area_ratio."""
-        cat_int = gpd.overlay(cat, lake, how="difference")  # compute CAT - LAKE difference
+        cat_int = self._shp1_shp2_overlay_info(cat, lake, how='difference') # _river_lake_difference_info(cat, lake)  # compute CAT - LAKE difference
         cat_out = cat.copy()  # copy original CAT
         cat_out["area_org"] = cat_out.geometry.area  # original CAT area
         cat_int["area_out_lake"] = cat_int.geometry.area  # area after removing lake
@@ -45,6 +45,225 @@ class NetworkTopologyCorrection:
         cat_out = cat_out.drop(columns=["area_org", "area_out_lake"])  # keep area_ratio for return
         return cat_out
 
+    # def _river_lake_intersection_info(
+    #     self,
+    #     riv: gpd.GeoDataFrame,
+    #     lake: gpd.GeoDataFrame,
+    #     ):
+    #     """
+    #     Computes basic intersection summary between rivers and lakes.
+
+    #     - Drops river and lake features with null or empty geometries
+    #     - Computes river–lake intersections
+    #     - Returns the intersection GeoDataFrame
+
+    #     Prints (optional / downstream use):
+    #       - number of lakes intersecting any river segment
+    #       - number of river segments intersecting >1 lake
+    #     """
+
+    #     # --------------------------------------------------
+    #     # 1. Drop invalid geometries (None or empty)
+    #     # --------------------------------------------------
+    #     riv_valid = riv[
+    #         riv.geometry.notna() & ~riv.geometry.is_empty
+    #     ].copy()
+
+    #     lake_valid = lake[
+    #         lake.geometry.notna() & ~lake.geometry.is_empty
+    #     ].copy()
+
+    #     # --------------------------------------------------
+    #     # 2. Short-circuit if nothing to intersect
+    #     # --------------------------------------------------
+    #     if riv_valid.empty or lake_valid.empty:
+    #         return gpd.GeoDataFrame(
+    #             columns=list(riv.columns) + list(lake.columns),
+    #             geometry=[],
+    #             crs=riv.crs
+    #         )
+
+    #     # --------------------------------------------------
+    #     # 3. Intersection
+    #     # --------------------------------------------------
+    #     river_lake_int = gpd.overlay(
+    #         riv_valid,
+    #         lake_valid,
+    #         how="intersection"
+    #     )
+
+    #     # --------------------------------------------------
+    #     # 4. Summary metrics (if needed)
+    #     # --------------------------------------------------
+    #     num_lakes = river_lake_int["LakeCOMID"].nunique()
+
+    #     multi_lake_riv = (
+    #         river_lake_int
+    #         .groupby("COMID")["LakeCOMID"]
+    #         .nunique()
+    #         .gt(1)
+    #         .sum()
+    #     )
+
+    #     return river_lake_int
+
+    # def _river_lake_difference_info(
+    #     self,
+    #     riv: gpd.GeoDataFrame,
+    #     lake: gpd.GeoDataFrame,
+    # ):
+    #     """
+    #     Computes river–lake difference geometry (river segments with lake-covered
+    #     portions removed).
+
+    #     - Drops river and lake features with null or empty geometries
+    #     - Computes river minus lake geometries
+    #     - Returns the difference GeoDataFrame
+
+    #     Notes
+    #     -----
+    #     This operation is typically used to:
+    #       - shorten river segments that pass through lakes
+    #       - identify non-lake river reaches for length correction
+    #       - support lake–river topology resolution
+
+    #     The returned GeoDataFrame preserves river attributes and CRS.
+    #     """
+
+    #     # --------------------------------------------------
+    #     # 1. Drop invalid geometries (None or empty)
+    #     # --------------------------------------------------
+    #     riv_valid = riv[
+    #         riv.geometry.notna() & ~riv.geometry.is_empty
+    #     ].copy()
+
+    #     lake_valid = lake[
+    #         lake.geometry.notna() & ~lake.geometry.is_empty
+    #     ].copy()
+
+    #     # --------------------------------------------------
+    #     # 2. Short-circuit if nothing to difference
+    #     # --------------------------------------------------
+    #     if riv_valid.empty:
+    #         return gpd.GeoDataFrame(
+    #             columns=riv.columns,
+    #             geometry=[],
+    #             crs=riv.crs
+    #         )
+
+    #     if lake_valid.empty:
+    #         # No lakes → river unchanged
+    #         return riv_valid.copy()
+
+    #     # --------------------------------------------------
+    #     # 3. Difference operation (river - lake)
+    #     # --------------------------------------------------
+    #     river_lake_diff = gpd.overlay(
+    #         riv_valid,
+    #         lake_valid,
+    #         how="difference"
+    #     )
+
+    #     return river_lake_diff
+
+    def _shp1_shp2_overlay_info(
+        self,
+        shp1: gpd.GeoDataFrame,
+        shp2: gpd.GeoDataFrame,
+        how: str = "intersection",
+    ):
+        """
+        Perform a robust geometric overlay operation between two GeoDataFrames.
+
+        This function supports both intersection and difference operations and
+        safely handles invalid geometries.
+
+        Parameters
+        ----------
+        shp1 : geopandas.GeoDataFrame
+            Primary input layer (e.g., river network). Attributes from this
+            GeoDataFrame are always preserved in the output.
+
+        shp2 : geopandas.GeoDataFrame
+            Secondary input layer (e.g., lakes). Used to intersect with or subtract
+            from `shp1`.
+
+        how : str, default "intersection"
+            Overlay operation to perform. Supported values:
+              - "intersection": return overlapping geometries between shp1 and shp2
+              - "difference": return shp1 geometries with shp2 areas removed
+
+        Returns
+        -------
+        geopandas.GeoDataFrame
+            Resulting GeoDataFrame after applying the overlay operation.
+            The CRS is inherited from `shp1`.
+
+        Design principles
+        -----------------
+        - Drops features with null or empty geometries from both inputs
+        - Short-circuits safely if one or both layers are empty
+        - Preserves original CRS and attributes of `shp1`
+        - Avoids GeoPandas overlay failures caused by invalid geometries
+        - Side-effect free (inputs are not modified)
+
+        Typical use cases
+        -----------------
+        - River–lake intersection analysis
+        - Removing lake-covered portions of river geometries
+        - Length and area correction workflows
+        - General-purpose vector topology operations
+        """
+
+        if how not in {"intersection", "difference"}:
+            raise ValueError("`how` must be either 'intersection' or 'difference'")
+
+        # --------------------------------------------------
+        # 1. Drop invalid geometries
+        # --------------------------------------------------
+        shp1_valid = shp1[
+            shp1.geometry.notna() & ~shp1.geometry.is_empty
+        ].copy()
+
+        shp2_valid = shp2[
+            shp2.geometry.notna() & ~shp2.geometry.is_empty
+        ].copy()
+
+        # --------------------------------------------------
+        # 2. Short-circuit logic
+        # --------------------------------------------------
+        if shp1_valid.empty:
+            return gpd.GeoDataFrame(
+                columns=shp1.columns,
+                geometry=[],
+                crs=shp1.crs
+            )
+
+        if shp2_valid.empty:
+            if how == "difference":
+                # shp1 - empty = shp1
+                return shp1_valid.copy()
+            else:
+                # intersection with empty = empty
+                return gpd.GeoDataFrame(
+                    columns=list(shp1.columns) + list(shp2.columns),
+                    geometry=[],
+                    crs=shp1.crs
+                )
+
+        # --------------------------------------------------
+        # 3. Overlay operation
+        # --------------------------------------------------
+        result = gpd.overlay(
+            shp1_valid,
+            shp2_valid,
+            how=how
+        )
+
+        return result
+
+
+
     def _riv_geometry_correction(self, riv: gpd.GeoDataFrame, lake: gpd.GeoDataFrame):
         """
         Correct river lengths under lakes:
@@ -59,7 +278,7 @@ class NetworkTopologyCorrection:
         # Original river length (km or projected units)
         riv["length_org"] = riv.geometry.length
         # --- river ∩ lake ---
-        riv_int = gpd.overlay(riv, lake, how="intersection")
+        riv_int = self._shp1_shp2_overlay_info(riv, lake, how="intersection")
         # ------------------------------------------------------
         # CASE 1: No intersections → trivial correction
         # ------------------------------------------------------
@@ -84,7 +303,7 @@ class NetworkTopologyCorrection:
         affected = riv["length_ratio"] < 1
         if affected.any():
             # geometry minus lake
-            riv_diff = gpd.overlay(riv, lake, how="difference")
+            riv_diff =  self._shp1_shp2_overlay_info(riv, lake, how="difference")
             diff_map = riv_diff.set_index("COMID").geometry
             riv.loc[affected, "geometry"] = riv.loc[affected, "COMID"].map(diff_map)
         # Fully submerged → drop geometry
@@ -195,8 +414,6 @@ class NetworkTopologyCorrection:
         return riv, cat
 
 
-
-
     def _riv_topology_correction(self, riv, cat, lake, network_clean_up_flag: bool=True):
         """
         Build lake–river hydraulic topology using explicit exhoreic/endorheic flag.
@@ -220,7 +437,7 @@ class NetworkTopologyCorrection:
         # -------------------------------------
         # 1. Intersect lakes with rivers
         # -------------------------------------
-        lake_riv = gpd.overlay(riv, lake, how="intersection")
+        lake_riv = self._shp1_shp2_overlay_info(riv, lake, how="intersection")
         if lake_riv.empty:
             # If no intersections: keep original lake order
             lake = lake.reset_index(drop=True)

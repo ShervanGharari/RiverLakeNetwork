@@ -20,7 +20,7 @@ class OutputChecker:
         self.lake = lake
         self._check_lake_outlet_graph_simple()
         self._check_inoutflow_length()
-        has_loop = Utility.check_network_loops(riv=self.riv, comid_col="COMID", next_col="NextDownCOMID")
+        has_loop = Utility.check_network_loops(riv=self.riv, mapping={"id": "COMID", "next_id": "NextDownCOMID"})
 
     # --------------------------------------------------
     # Internal helpers
@@ -319,9 +319,6 @@ class OutputChecker:
             print("✓ No lake outlet topology issues found.")
 
         A = sorted(lid for lid in violated_lake_ids if pd.notna(lid))
-        print(A)
-        print(violations)
-
         # return violations, sorted(lid for lid in violated_lake_ids if pd.notna(lid))
 
     def _check_inoutflow_length(self, tol=1e-6):
