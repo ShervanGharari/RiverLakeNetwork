@@ -182,7 +182,7 @@ The repository includes several worked examples demonstrating how lakes and rese
   Demonstrates integration of HydroLAKES into a MERITBasins river network.
   [./examples/Example03_MERITBasinsHydroLAKES.ipynb](./examples/Example03_MERITBasinsHydroLAKES.ipynb)
 
-![Comparison of above examples](./examples/Plots/Figure_1.png)
+![Comparison of above examples](./examples/Plots/Figure_2.png)
 
 ---
 
