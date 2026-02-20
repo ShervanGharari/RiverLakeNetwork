@@ -585,7 +585,7 @@ class ResolvableLakes:
                 ds_row = group[group["uparea"] == max_uparea].iloc[0]
                 comid_ds = ds_row["COMID"]
                 length_in_lake = ds_row[length_col]
-                length_original = float(riv.loc[riv["COMID"] == comid_ds, "_length_org"])
+                length_original = float(riv.loc[riv["COMID"] == comid_ds, "_length_org"].values[0])
                 if length_in_lake < length_original:
                     # EXORHEIC lake
                     lake.loc[lake["LakeCOMID"] == lake_id, "exorheic"] = 1
