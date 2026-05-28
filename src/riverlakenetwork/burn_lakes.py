@@ -8,6 +8,7 @@ from .input_loader import InputLoader
 from .input_checker import InputChecker
 from .resolvable_lake_identifier import ResolvableLakes
 from .network_correction import NetworkTopologyCorrection
+from .single_segment_lake_identifier import SingleSegmentLakes
 from .output_checker import OutputChecker
 from .utility import Utility
 
@@ -104,7 +105,44 @@ class BurnLakes:
         print("=============================================================================")
 
         # ------------------
-        # 5. Check network topology
+        # 5. Identify single-segment lakes
+        # ------------------
+        t0 = datetime.now()
+        print("=========================================================================================")
+        print("=== Resolving single-segment lakes started at :", t0.strftime("%Y-%m-%d %H:%M:%S"), " ===")
+        SingleSegment = SingleSegmentLakes(
+            cat=self.cat,
+            riv=self.riv,
+            lake=self.lake_org,
+        )
+        self.single_segment_lake = SingleSegment.single_segment_lake
+        del SingleSegment
+        t1 = datetime.now()
+        print("=== Resolving single-segment lakes finished at :", t1.strftime("%Y-%m-%d %H:%M:%S"), " ==")
+        print("=== Resolving single-segment lakes took         :", (t1 - t0), " ========================")
+        print("=========================================================================================")
+
+        # # ------------------
+        # # 6. Correct network topology
+        # # ------------------
+        # t0 = datetime.now()
+        # print("=============================================================================")
+        # print("=== Network correction started at :", t0.strftime("%Y-%m-%d %H:%M:%S"), " ===")
+        # corrector = NetworkTopologyCorrection(
+        #     cat=self.cat,
+        #     riv=self.riv,
+        #     lake=self.lake,
+        #     network_clean_up_flag=network_clean_up_flag
+        # )
+        # self.cat, self.riv, self.lake = corrector.cat_corrected, corrector.riv_corrected, corrector.lake_corrected
+        # del corrector
+        # t1 = datetime.now()
+        # print("=== Network correction finished at:", t1.strftime("%Y-%m-%d %H:%M:%S"), " ===")
+        # print("=== Network correction took      :", (t1 - t0), " ===========================")
+        # print("=============================================================================")
+
+        # ------------------
+        # 7. Check output and save
         # ------------------
         t0 = datetime.now()
         print("=============================================================================")

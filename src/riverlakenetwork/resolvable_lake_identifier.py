@@ -83,34 +83,12 @@ class ResolvableLakes:
             (lake["y"] >= miny) & (lake["y"] <= maxy)
         ]
         # --- 4a. Spatial intersection with catchments ---
+        cat = cat.drop(columns=["LakeCOMID"], errors="ignore")
         intersected = gpd.sjoin(lake_filtered, cat, how="inner", predicate="intersects")
         # print(intersected.columns)
         lake_ids = intersected["LakeCOMID"].unique()
         lake_subset = lake_filtered[lake_filtered["LakeCOMID"].isin(lake_ids)].reset_index(drop=True)
-        # # --- 4b. Enforce containment within overall catchment boundary ---
-        # kept_idx = []
-        # for idx, lake_row in lake_subset.iterrows():
-        #     lake_geom = lake_row.geometry
-        #     #print(idx)
-        #     # Find catchments from original cat that intersect this lake
-        #     cat_slice = gpd.sjoin(
-        #         cat,
-        #         gpd.GeoDataFrame(geometry=[lake_geom], crs=cat.crs),
-        #         how="inner",
-        #         predicate="intersects")
-        #     if cat_slice.empty:
-        #         continue  # skip this lake
-        #     # Union the intersecting catchments
-        #     cat_slice_union = unary_union(cat_slice.geometry)
-        #     # Keep the lake only if fully within this local union
-        #     if lake_geom.within(cat_slice_union):
-        #         kept_idx.append(idx)
-        # # Subset lake_subset to only the kept lakes
-        # lake_subset = lake_subset.loc[kept_idx].reset_index(drop=True)
-        # # ------------------------------------------------------------------
-        # # Alternatively 4b can be speed up by intersection and difference and
-        # # lakes that are outside can be removed fully
-        # Keep only the relevant columns
+        # --- 5. Prepare the subset of lakes ---
         final_cols = ["LakeCOMID", "unitarea", "geometry"]
         missing = [c for c in final_cols if c not in lake_subset.columns]
         if missing:
