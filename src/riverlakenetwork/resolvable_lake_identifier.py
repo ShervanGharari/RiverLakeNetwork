@@ -70,25 +70,47 @@ class ResolvableLakes:
         GeoDataFrame
             Filtered lake dataset
         """
-        # --- 1. Compute lake centroids ---
+
+        if lake.empty:
+            return lake.copy()
+
+        # --- 1. Compute centroids ---
         lake = lake.copy()
-        lake_centroids = lake.geometry.centroid
-        lake["x"], lake["y"] = lake_centroids.x, lake_centroids.y
-        # --- 2. Catchment bounding box with margin ---
+        centroids = lake.geometry.centroid
+        lake["x"], lake["y"] = centroids.x, centroids.y
+
+        # --- 2. Bounding box ---
         minx, miny, maxx, maxy = cat.total_bounds
-        minx, miny, maxx, maxy = minx - margin, miny - margin, maxx + margin, maxy + margin
-        # --- 3. Fast filter lakes by centroid within bounding box ---
+        minx -= margin
+        miny -= margin
+        maxx += margin
+        maxy += margin
+
         lake_filtered = lake[
             (lake["x"] >= minx) & (lake["x"] <= maxx) &
             (lake["y"] >= miny) & (lake["y"] <= maxy)
         ]
-        # --- 4a. Spatial intersection with catchments ---
-        cat = cat.drop(columns=["LakeCOMID"], errors="ignore")
-        intersected = gpd.sjoin(lake_filtered, cat, how="inner", predicate="intersects")
-        # print(intersected.columns)
+
+        if lake_filtered.empty:
+            return lake_filtered
+
+        # --- 3. Spatial intersection with catchments ---
+        intersected = gpd.sjoin(
+            lake_filtered,
+            cat,
+            how="inner",
+            predicate="intersects"
+        )
+
+        if intersected.empty:
+            return intersected.iloc[0:0]
+
         lake_ids = intersected["LakeCOMID"].unique()
-        lake_subset = lake_filtered[lake_filtered["LakeCOMID"].isin(lake_ids)].reset_index(drop=True)
-        # --- 5. Prepare the subset of lakes ---
+        lake_subset = lake_filtered[
+            lake_filtered["LakeCOMID"].isin(lake_ids)
+        ].reset_index(drop=True)
+
+        # --- 4. Final validation ---
         final_cols = ["LakeCOMID", "unitarea", "geometry"]
         missing = [c for c in final_cols if c not in lake_subset.columns]
         if missing:

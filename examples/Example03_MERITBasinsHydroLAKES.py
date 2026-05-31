@@ -10,13 +10,13 @@ regions = {
             "cst": '/Users/shg096/Desktop/MERIT_Hydro/hill/hillslope_71_clean.shp',
         }
     },
-    "74": {
-        "files": {
-            "riv": '/Users/shg096/Desktop/MERIT_Hydro/riv/riv_pfaf_74_MERIT_Hydro_v07_Basins_v01_bugfix1.shp',
-            "cat": '/Users/shg096/Desktop/MERIT_Hydro/cat/cat_pfaf_74_MERIT_Hydro_v07_Basins_v01_bugfix1.shp',
-            "cst": '/Users/shg096/Desktop/MERIT_Hydro/hill/hillslope_74_clean.shp',
-        }
-    },
+    # "74": {
+    #     "files": {
+    #         "riv": '/Users/shg096/Desktop/MERIT_Hydro/riv/riv_pfaf_74_MERIT_Hydro_v07_Basins_v01_bugfix1.shp',
+    #         "cat": '/Users/shg096/Desktop/MERIT_Hydro/cat/cat_pfaf_74_MERIT_Hydro_v07_Basins_v01_bugfix1.shp',
+    #         "cst": '/Users/shg096/Desktop/MERIT_Hydro/hill/hillslope_74_clean.shp',
+    #     }
+    # },
 }
 
 # location of HydroLAKES
@@ -39,7 +39,7 @@ lake = lake.set_crs("EPSG:4326") # make sure the lake has projection
 
 # loop over regions and their files
 for pfaf, files in regions.items():
-    
+
     # read the pfaf merit folder
     riv, cat = Utility.merit_read_file(riv_file=files["files"]["riv"],
                                        cat_file=files["files"]["cat"],
@@ -63,11 +63,11 @@ for pfaf, files in regions.items():
     # make sure the riv, and cat have projection
     riv = riv.set_crs("EPSG:4326")
     cat = cat.set_crs("EPSG:4326")
-    
+
     # save riv, and cat
     riv.to_file(os.path.join(org_folder, "riv.gpkg"))
     cat.to_file(os.path.join(org_folder, "cat.gpkg"))
-    
+
     # create the config and pass it to the Burn lake
     config = {
         "riv": riv,
@@ -90,7 +90,17 @@ for pfaf, files in regions.items():
     }
 
     # burn lakes into river network
-    bl = BurnLakes(config)
+    bl = BurnLakes(config,
+        single_segment_lakes_activate_flag = True,
+        single_segment_lakesID_position = {83279: "up",
+                                           84896: "up",
+                                           6550: "up",
+                                           87073: None, # will be populated by single_segment_global_position
+                                           86960: None, # will be populated by single_segment_global_position
+                                           6643: None, # will be populated by single_segment_global_position
+                                           },
+        single_segment_lakesID_restrict = True, # if false it will try to resolve as much as one segment lakes
+        single_segment_lakes_global_position = "down")
 
     # create folder to save
     pfaf_base = f"pfaf{pfaf}"

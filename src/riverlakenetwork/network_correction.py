@@ -13,9 +13,9 @@ class NetworkTopologyCorrection:
         cat: gpd.GeoDataFrame,
         lake: gpd.GeoDataFrame,
         riv: gpd.GeoDataFrame,
-        network_clean_up_flag: bool=True):
+        ):
 
-        riv, cat, lake = self._riv_topology_correction(riv, cat, lake, network_clean_up_flag=network_clean_up_flag)
+        riv, cat, lake = self._riv_topology_correction(riv, cat, lake)
 
         self.cat_corrected = cat
         self.riv_corrected = riv
@@ -414,7 +414,7 @@ class NetworkTopologyCorrection:
         return riv, cat
 
 
-    def _riv_topology_correction(self, riv, cat, lake, network_clean_up_flag: bool=True):
+    def _riv_topology_correction(self, riv, cat, lake):
         """
         Build lake–river hydraulic topology using explicit exhoreic/endorheic flag.
         Steps:
@@ -588,9 +588,8 @@ class NetworkTopologyCorrection:
         # add the inoutflow
         riv["inoutflow"] = ((riv["inflow"] == 1) & (riv["outflow"] == 1)).astype(int)
         # clean up
-        if network_clean_up_flag:
-            riv = Utility.add_immediate_upstream (riv, mapping = {'id':'COMID','next_id':'NextDownCOMID'})
-            riv, cat = self._clean_up(riv, cat)
+        riv = Utility.add_immediate_upstream (riv, mapping = {'id':'COMID','next_id':'NextDownCOMID'})
+        riv, cat = self._clean_up(riv, cat)
         # (re)compute uparea
         #print(riv)
         riv = Utility.compute_uparea(riv)

@@ -1,7 +1,7 @@
 import geopandas as gpd
 import pandas as pd
-from typing import Optional, List
-
+from typing import Optional, Union, List, Set, Dict
+from .utility import Utility
 
 class SingleSegmentLakes:
 
@@ -11,41 +11,75 @@ class SingleSegmentLakes:
         lake: gpd.GeoDataFrame,
         riv: gpd.GeoDataFrame,
         lake_subset_margin: float = 2.0,
-        already_resolved_lakeID: Optional[List[int]] = None,
-        single_segment_lakeID: Optional[List[int]] = None,
         force_one_lake_per_riv_seg_flag: bool = False,
+        single_segment_lakesID_position: Optional[
+            Union[List[int], Set[int], Dict[int, str]]
+        ] = None,
+        single_segment_lakesID_restrict: bool = True,
+        single_segment_lakes_global_position: str = "down",
     ):
         """
         Main workflow controller.
-
-        Steps:
-        1. Spatially subset lakes to region of interest (+ margin)
-        2. Remove lakes already processed
-        3. Optionally filter to a given list of lake IDs
-        4. Identify lakes that belong to a single river segment
-        5. Filter lakes based on upstream/downstream connectivity
-
-        Important:
-        - The workflow is robust to empty datasets at any stage.
-        - If lake_subset becomes empty at any step, subsequent steps
-          will safely pass through without errors.
         """
+
+        # ------------------ #
+        # Step 1: subset lakes
+        # ------------------ #
         lake_subset = self._subset_lake(cat, lake, lake_subset_margin)
 
-        lake_subset = self._remove_geometrically_resolved_lakes(lake_subset, already_resolved_lakeID)
+        # ------------------ #
+        # Step 2: optional restriction to provided IDs
+        # ------------------ #
+        if single_segment_lakesID_position:
 
-        lake_subset = self._subset_for_given_single_segment_lakes_ID(lake_subset, single_segment_lakeID)
+            position_map = Utility.normalize_single_segment_lakes(
+                single_segment_lakesID_position,
+                single_segment_lakes_global_position,
+            )
 
-        lake_subset = self._find_single_segment_lakes(cat, lake_subset, riv)
-        print(f"==== Number of single segment lakes after subsetting: {len(lake_subset)} ====")
+            if single_segment_lakesID_restrict:
+                if "LakeCOMID" not in lake_subset.columns:
+                    raise ValueError("LakeCOMID column is required")
+
+                lake_subset = (
+                    lake_subset[
+                        lake_subset["LakeCOMID"].isin(position_map.keys())
+                    ]
+                    .copy()
+                    .reset_index(drop=True)
+                )
+
+        # ------------------ #
+        # Step 3: detect single segment lakes
+        # ------------------ #
+        lake_subset = self._find_single_segment_lakes(
+            cat, lake_subset, riv
+        )
+
+        print(
+            f"==== Number of single segment lakes after subsetting: "
+            f"{len(lake_subset)} ===="
+        )
+
+        # ------------------ #
+        # Step 4: filtering
+        # ------------------ #
         lake_subset = self._filter_single_segment_lakes(
             lake_subset,
             riv,
-            force_one_lake_per_riv_seg_flag
+            force_one_lake_per_riv_seg_flag,
+            single_segment_lakesID_position,
+            single_segment_lakes_global_position,
         )
 
-        print(f"==== Number of lakes after processing: {len(lake_subset)} ====")
+        print(
+            f"==== Number of lakes after processing: "
+            f"{len(lake_subset)} ===="
+        )
 
+        # ------------------ #
+        # Final output
+        # ------------------ #
         self.single_segment_lake = lake_subset.reset_index(drop=True)
 
     def _subset_lake(
@@ -95,47 +129,6 @@ class SingleSegmentLakes:
             raise ValueError(f"Missing required columns: {missing}")
         return lake_subset[final_cols]
 
-    def _remove_geometrically_resolved_lakes(
-        self,
-        lake: gpd.GeoDataFrame,
-        already_resolved_lakeID: Optional[List[int]],
-    ) -> gpd.GeoDataFrame:
-        """
-        Remove lakes that were already processed externally.
-
-        Logic:
-        - If no list is provided → return unchanged
-        - Otherwise filter them out
-
-        Edge case:
-        - Empty input lake → safely returned
-        """
-
-        if lake.empty or already_resolved_lakeID is None:
-            return lake
-
-        return lake[~lake["LakeCOMID"].isin(already_resolved_lakeID)].copy()
-
-    def _subset_for_given_single_segment_lakes_ID(
-        self,
-        lake: gpd.GeoDataFrame,
-        single_segment_lakeID: Optional[List[int]],
-    ) -> gpd.GeoDataFrame:
-        """
-        Optional filtering step to restrict processing to a given set of lake IDs.
-
-        Useful for:
-        - Debugging
-        - Targeted re-processing
-
-        Edge case:
-        - If lake is empty → no issue
-        """
-
-        if lake.empty or single_segment_lakeID is None:
-            return lake
-
-        return lake[lake["LakeCOMID"].isin(single_segment_lakeID)].copy()
 
     def _find_single_segment_lakes(
         self,
@@ -287,50 +280,93 @@ class SingleSegmentLakes:
         self,
         lake: gpd.GeoDataFrame,
         riv: gpd.GeoDataFrame,
-        force_one_lake_per_riv_seg_flag: bool,
+        force_one_lake_per_riv_seg_flag: bool = False,
+        single_segment_lakesID_position: Optional[
+            Union[List[int], Set[int], Dict[int, str]]
+        ] = None,
+        single_segment_lakes_global_position: str = "down",
     ) -> gpd.GeoDataFrame:
         """
         Final filtering based on upstream/downstream lake connectivity.
-
-        Rules:
-        1. Always remove lakes whose downstream segment is a lake
-        2. Remove upstream-connected lakes only if force flag is True
-        3. Otherwise keep upstream-connected lakes
-
-        Edge case:
-        - Empty input → returned safely
         """
 
         if lake.empty:
             return lake
 
+        # ------------------ #
+        # Validate required columns
+        # ------------------ #
+        required_cols = {"associated_COMID", "LakeCOMID"}
+        missing = required_cols - set(lake.columns)
+        if missing:
+            raise ValueError(f"Missing required columns: {missing}")
+
         lake = lake.copy()
 
+        # ------------------ #
+        # Normalize position map
+        # ------------------ #
+        position_map = Utility.normalize_single_segment_lakes(
+            single_segment_lakesID_position,
+            single_segment_lakes_global_position,
+        )
+
+        lake["position"] = "down"
         keep = []
 
-        for _, row in lake.iterrows():
+        for idx, row in lake.iterrows():
 
             comid = row["associated_COMID"]
-            flags = self._find_if_up_or_down_are_lake(riv, comid)
 
+            flags = self._find_if_up_or_down_are_lake(riv, comid)
             up = flags["up"]
             down = flags["down"]
 
-            # -----------------------------
-            # HARD RULE: downstream lake = always remove
-            # -----------------------------
-            if down:
+            # safer COMID handling
+            try:
+                lake_comid = int(row["LakeCOMID"])
+            except Exception:
                 keep.append(False)
                 continue
 
-            # -----------------------------
-            # Upstream rule
-            # -----------------------------
-            if up and force_one_lake_per_riv_seg_flag:
+            position = position_map.get(
+                lake_comid,
+                single_segment_lakes_global_position,
+            )
+
+            # --------------------------------------------------
+            # RULE 1: forced simplification
+            # --------------------------------------------------
+            if force_one_lake_per_riv_seg_flag and (up or down):
                 keep.append(False)
-            else:
+                continue
+
+            # --------------------------------------------------
+            # RULE 2: no lakes up/down → always keep
+            # --------------------------------------------------
+            if not up and not down:
+                lake.at[idx, "position"] = position
                 keep.append(True)
+                continue
+
+            # --------------------------------------------------
+            # RULE 3 & 4 combined
+            # --------------------------------------------------
+            allow = (
+                (down and position == "up") or
+                (up and position == "down")
+            )
+
+            if allow:
+                lake.at[idx, "position"] = position
+                keep.append(True)
+            else:
+                keep.append(False)
 
         lake["keep"] = keep
 
-        return lake[lake["keep"]].drop(columns="keep").reset_index(drop=True)
+        return (
+            lake[lake["keep"]]
+            .drop(columns="keep")
+            .reset_index(drop=True)
+        )
