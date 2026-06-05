@@ -23,6 +23,7 @@ class BurnLakes:
         single_segment_lakes_activate_flag: bool=False,
         single_segment_lakesID_position: Optional[Union[List[int], Set[int], Dict[int, str]]] = None,
         single_segment_lakesID_restrict: bool=True,
+        single_segment_lakes_remove_first_order_flag: bool=True,
         single_segment_lakes_global_position: str= "down"): # "down" or "up"
 
         self.config = config
@@ -31,6 +32,7 @@ class BurnLakes:
         self.single_segment_lakes_activate_flag = single_segment_lakes_activate_flag
         self.single_segment_lakesID_position = single_segment_lakesID_position
         self.single_segment_lakesID_restrict = single_segment_lakesID_restrict
+        self.single_segment_lakes_remove_first_order_flag = single_segment_lakes_remove_first_order_flag
         self.single_segment_lakes_global_position = single_segment_lakes_global_position
 
         if self.single_segment_lakesID_position:
@@ -137,6 +139,7 @@ class BurnLakes:
                 force_one_lake_per_riv_seg_flag=self.force_one_lake_per_riv_seg_flag,
                 single_segment_lakesID_position=self.single_segment_lakesID_position,
                 single_segment_lakesID_restrict=self.single_segment_lakesID_restrict,
+                single_segment_lakes_remove_first_order_flag=self.single_segment_lakes_remove_first_order_flag,
                 single_segment_lakes_global_position=self.single_segment_lakes_global_position
             )
             self.single_segment_lake = SingleSegment.single_segment_lake

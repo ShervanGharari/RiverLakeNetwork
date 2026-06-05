@@ -15,6 +15,7 @@ class SingleSegmentLakes:
         single_segment_lakesID_position: Optional[
             Union[List[int], Set[int], Dict[int, str]]
         ] = None,
+        single_segment_lakes_remove_first_order_flag: bool = True,
         single_segment_lakesID_restrict: bool = True,
         single_segment_lakes_global_position: str = "down",
     ):
@@ -69,6 +70,7 @@ class SingleSegmentLakes:
             riv,
             force_one_lake_per_riv_seg_flag,
             single_segment_lakesID_position,
+            single_segment_lakes_remove_first_order_flag,
             single_segment_lakes_global_position,
         )
 
@@ -284,6 +286,7 @@ class SingleSegmentLakes:
         single_segment_lakesID_position: Optional[
             Union[List[int], Set[int], Dict[int, str]]
         ] = None,
+        single_segment_lakes_remove_first_order_flag: bool = True,
         single_segment_lakes_global_position: str = "down",
     ) -> gpd.GeoDataFrame:
         """
@@ -303,6 +306,13 @@ class SingleSegmentLakes:
 
         lake = lake.copy()
 
+        # one to one valibration
+        if not (
+            lake["LakeCOMID"].is_unique
+            and lake["associated_COMID"].is_unique
+        ):
+            raise ValueError("Mapping is not one-to-one between LakeCOMID and associated_COMID")
+
         # ------------------ #
         # Normalize position map
         # ------------------ #
@@ -313,6 +323,12 @@ class SingleSegmentLakes:
 
         lake["position"] = "down"
         keep = []
+
+        # ------------------ #
+        # Identify the headwater riv segment
+        # ------------------ #
+        downstream_targets = set(riv["NextDownCOMID"].dropna())
+        riv["headwater"] = ~riv["COMID"].isin(downstream_targets)
 
         for idx, row in lake.iterrows():
 
@@ -333,6 +349,18 @@ class SingleSegmentLakes:
                 lake_comid,
                 single_segment_lakes_global_position,
             )
+
+            # if position is up and the associated COMID for riv headwater
+            # and if filter is True, the lake is removed
+            river_row = riv.loc[riv["COMID"] == comid]
+            if (
+                not river_row.empty
+                and river_row["headwater"].iloc[0]
+                and single_segment_lakes_remove_first_order_flag
+                and position.lower() == "up"
+            ):
+                keep.append(False)
+                continue
 
             # --------------------------------------------------
             # RULE 1: forced simplification
@@ -364,6 +392,8 @@ class SingleSegmentLakes:
                 keep.append(False)
 
         lake["keep"] = keep
+
+        lake = lake.drop(columns=["headwater"])
 
         return (
             lake[lake["keep"]]
