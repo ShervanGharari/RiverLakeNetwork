@@ -27,7 +27,7 @@ class NetworkTopologyCorrectionSingleSegmentLakes:
         singlelake: gpd.GeoDataFrame,
         cat: gpd.GeoDataFrame,
         riv: gpd.GeoDataFrame,
-    ) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame, gpd.GeoDataFrame]:
+    ):
 
         cat = cat.copy()
         riv = riv.copy()
