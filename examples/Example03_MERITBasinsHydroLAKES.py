@@ -36,6 +36,12 @@ lake = gpd.read_file(lake_file) # read the hydrolake dataset
 lake = Utility.FixHydroLAKESv1(lake, merge_lakes={"Michigan+Huron": [6, 8]})
 lake = lake.set_crs("EPSG:4326") # make sure the lake has projection
 
+# cent = lake.geometry.centroid
+# lake = lake[
+#     (cent.x >= -130) & (cent.x <= -110) &
+#     (cent.y >= 45)   & (cent.y <= 55)
+# ]
+
 
 # loop over regions and their files
 for pfaf, files in regions.items():
@@ -99,7 +105,7 @@ for pfaf, files in regions.items():
                                            86960: None, # will be populated by single_segment_global_position
                                            6643: None, # will be populated by single_segment_global_position
                                            },
-        single_segment_lakesID_restrict = True, # if false it will try to resolve as much as one segment lakes
+        single_segment_lakesID_restrict = False, # if false it will try to resolve as much as one segment lakes
         single_segment_lakes_global_position = "down")
 
     # create folder to save

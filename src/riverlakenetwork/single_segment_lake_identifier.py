@@ -327,6 +327,7 @@ class SingleSegmentLakes:
         # ------------------ #
         # Identify the headwater riv segment
         # ------------------ #
+        riv = riv.copy()
         downstream_targets = set(riv["NextDownCOMID"].dropna())
         riv["headwater"] = ~riv["COMID"].isin(downstream_targets)
 
@@ -393,7 +394,8 @@ class SingleSegmentLakes:
 
         lake["keep"] = keep
 
-        lake = lake.drop(columns=["headwater"])
+        lake = lake.drop(columns=["headwater"], errors="ignore")
+        riv = riv.drop(columns=["headwater"], errors="ignore")
 
         return (
             lake[lake["keep"]]

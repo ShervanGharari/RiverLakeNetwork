@@ -39,17 +39,16 @@ class NetworkTopologyCorrectionSingleSegmentLakes:
         if not (cat.crs == singlelake.crs == riv.crs):
             raise ValueError("CRS mismatch between inputs")
 
-        # Precompute maps (fast lookup)
-        riv_geom_map = riv.set_index("COMID")["geometry"].to_dict()
-
-        valid_lakes = []  # keep only valid ones
+        valid_lakes = []
 
         for _, row in singlelake.iterrows():
 
             comid = row["associated_COMID"]
             lake_geom = row.geometry
 
-            # ---- find catchment ----
+            # -------------------------
+            # Catchment update
+            # -------------------------
             cat_mask = cat["COMID"] == comid
             if not cat_mask.any():
                 continue
@@ -58,20 +57,16 @@ class NetworkTopologyCorrectionSingleSegmentLakes:
             cat_geom = cat.at[cidx, "geometry"]
 
             area_org = cat_geom.area
-
-            # subtract lake
             new_cat_geom = cat_geom.difference(lake_geom)
 
             if new_cat_geom.is_empty:
                 continue
 
-            area_new = new_cat_geom.area
-            area_ratio = area_new / area_org if area_org > 0 else 0
+            area_ratio = new_cat_geom.area / area_org if area_org > 0 else 0
 
-            # ---- river ----
-            if comid not in riv_geom_map:
-                continue
-
+            # -------------------------
+            # River update (NEW FIX)
+            # -------------------------
             riv_mask = riv["COMID"] == comid
             if not riv_mask.any():
                 continue
@@ -81,29 +76,36 @@ class NetworkTopologyCorrectionSingleSegmentLakes:
 
             length_org = riv_geom.length
 
-            # ⚠️ you are scaling length, not clipping → OK for now
-            length_ratio = area_ratio if length_org > 0 else 0
+            # 🔥 CLIP river geometry by lake
+            new_riv_geom = riv_geom.difference(lake_geom)
 
-            # ---- FILTER CONDITION ----
-            if area_ratio == 0 or length_ratio == 0:
-                # skip this lake completely
+            # if lake fully removes river segment → skip
+            if new_riv_geom.is_empty:
                 continue
 
-            # ---- APPLY UPDATES ----
+            length_new = new_riv_geom.length
+            length_ratio = length_new / length_org if length_org > 0 else 0
 
-            # update catchment
+            # -------------------------
+            # FILTER CONDITION
+            # -------------------------
+            if area_ratio == 0 or length_ratio == 0:
+                continue
+
+            # -------------------------
+            # APPLY UPDATES
+            # -------------------------
             cat.at[cidx, "geometry"] = new_cat_geom
+            riv.at[ridx, "geometry"] = new_riv_geom   # ✅ IMPORTANT FIX
 
             if "unitarea" in cat.columns:
                 cat.at[cidx, "unitarea"] *= area_ratio
 
-            # update river
-            riv.at[ridx, "length"] = length_org * length_ratio
+            if "length" in riv.columns:
+                riv.at[ridx, "length"] = length_new
 
-            # keep this lake
             valid_lakes.append(row)
 
-        # ---- rebuild filtered singlelake ----
         singlelake_out = gpd.GeoDataFrame(valid_lakes, crs=singlelake.crs).reset_index(drop=True)
 
         return singlelake_out, cat, riv
@@ -148,12 +150,13 @@ class NetworkTopologyCorrectionSingleSegmentLakes:
 
         # flags
         singlelake["islake"] = 1
-        singlelake["exorheic"] = 0
+        singlelake["exorheic"] = 1 # assumption
         singlelake["endorheic"] = 0
         singlelake["non_channelized"] = 0
+        singlelake["single_segment_lake"] = 1
 
         # -------------------------------------
-        # 3. Insert lakes into cat and riv
+        # 3. Insert lakes into cat and riv, and lake
         # -------------------------------------
         for _, row in singlelake.iterrows():
 
@@ -174,10 +177,15 @@ class NetworkTopologyCorrectionSingleSegmentLakes:
             # ---- add to RIV ----
             new_riv_row = {
                 "COMID": lake_comid,
-                "NextDownCOMID": None,
+                "NextDownCOMID": -9999,
+                "LakeCOMID": row.LakeCOMID,
                 "geometry": row.geometry,
-                "length": row.geometry.length,
-                "islake": 1,
+                "length": None,
+                "islake": row.islake,
+                "exorheic": row.exorheic,
+                "endorheic": row.endorheic,
+                "non_channelized": row.non_channelized,
+                "single_segment_lake": row.single_segment_lake,
             }
 
             riv = gpd.GeoDataFrame(
@@ -193,25 +201,50 @@ class NetworkTopologyCorrectionSingleSegmentLakes:
             # downstream insertion
             if position == "down":
 
-                # existing river now flows into lake
+                # find upstream river segment (assoc_comid)
                 mask = riv["COMID"] == assoc_comid
-                riv.loc[mask, "NextDownCOMID"] = lake_comid
+                if not mask.any():
+                    continue
 
+                # safe extraction
+                nextCOMID = riv.loc[mask, "NextDownCOMID"].iloc[0]
+
+                # A → L
+                riv.loc[mask, "NextDownCOMID"] = lake_comid
                 riv.loc[mask, "inflow"] = 1
+
+                # L → B
+                mask_lake = riv["COMID"] == lake_comid
+                if mask_lake.any():
+                    riv.loc[mask_lake, "NextDownCOMID"] = nextCOMID
 
             # upstream insertion
             elif position == "up":
 
-                # rivers flowing INTO assoc_comid now flow into lake
+                # A → B becomes A → L
                 mask = riv["NextDownCOMID"] == assoc_comid
-                riv.loc[mask, "NextDownCOMID"] = lake_comid
 
-                riv.loc[mask, "outflow"] = 1
+                if mask.any():
+                    riv.loc[mask, "NextDownCOMID"] = lake_comid
+                    riv.loc[mask, "outflow"] = 1
+
+                # L → B
+                mask_lake = riv["COMID"] == lake_comid
+                if mask_lake.any():
+                    riv.loc[mask_lake, "NextDownCOMID"] = assoc_comid
+                    riv.loc[mask_lake, "inflow"] = 1
 
             # optional: mark in/out
             if "inflow" in riv.columns and "outflow" in riv.columns:
-                both = riv["inflow"].fillna(0) & riv["outflow"].fillna(0)
+                both = riv["inflow"].fillna(0).astype(bool) & riv["outflow"].fillna(0).astype(bool)
                 riv.loc[both.astype(bool), "inoutflow"] = 1
+
+        # update lake with singlelake
+        lake = gpd.GeoDataFrame(
+            pd.concat([lake, singlelake], ignore_index=True),
+            crs=lake.crs
+        )
+
 
         # -------------------------------------
         # 5. Transfer unitarea, update int riv

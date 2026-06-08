@@ -625,4 +625,6 @@ class ResolvableLakes:
         # ----------------------------------------------------------
         riv.drop(columns=["_length_org"], inplace=True, errors="ignore")
         df_int.drop(columns=["_length_in_lake"], inplace=True, errors="ignore")
+        # add column for single_segment_lake
+        lake_filtered["single_segment_lake"] = 0
         return lake_filtered, riv_lake_int_filtered
