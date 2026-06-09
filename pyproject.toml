@@ -58,6 +58,8 @@ dev = [
   "flake8",
   "build",
   "twine",
+  "sphinx",
+  "sphinx-rtd-theme",
 ]
 
 
