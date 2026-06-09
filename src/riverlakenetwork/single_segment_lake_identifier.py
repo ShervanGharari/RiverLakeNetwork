@@ -385,14 +385,21 @@ class SingleSegmentLakes:
                 continue
 
             # --------------------------------------------------
-            # RULE 1: forced simplification
+            # RULE 1: there are already 2 lakes on the segment
+            # --------------------------------------------------
+            if up and down:
+                keep.append(False)
+                continue
+
+            # --------------------------------------------------
+            # RULE 2: forced simplification
             # --------------------------------------------------
             if force_one_lake_per_riv_seg_flag and (up or down):
                 keep.append(False)
                 continue
 
             # --------------------------------------------------
-            # RULE 2: no lakes up/down → always keep
+            # RULE 3: no lakes up/down → always keep
             # --------------------------------------------------
             if not up and not down:
                 lake.at[idx, "position"] = position
@@ -400,7 +407,7 @@ class SingleSegmentLakes:
                 continue
 
             # --------------------------------------------------
-            # RULE 3 & 4 combined
+            # RULE 4 & 5 combined
             # --------------------------------------------------
             allow = (
                 (down and position == "up") or

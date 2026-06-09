@@ -64,7 +64,7 @@ for pfaf, files in regions.items():
 
     # Manual correction for various pfafs from bugfix version
     # for pfaf 74, COMID 74030207, downstream COMID is similar to COMID! turn into a coastal
-    riv.loc[riv["COMID"] == 74030207, ["NextDownID", "geometry", "maxup", "up1", "length"]] = [-9999, None, 0, 0, 0]
+    riv.loc[riv["COMID"] == 74030207, ["NextDownID", "geometry", "maxup", "up1", "lengthkm"]] = [-9999, None, 0, 0, 0]
 
     # make sure the riv, and cat have projection
     riv = riv.set_crs("EPSG:4326")
