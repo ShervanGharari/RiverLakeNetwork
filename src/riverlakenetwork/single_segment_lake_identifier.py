@@ -306,11 +306,32 @@ class SingleSegmentLakes:
 
         lake = lake.copy()
 
-        # one to one valibration
-        if not (
-            lake["LakeCOMID"].is_unique
-            and lake["associated_COMID"].is_unique
-        ):
+        # LakeCOMID → multiple associated_COMID
+        lake_conflicts = (
+            lake.groupby("LakeCOMID")["associated_COMID"]
+            .nunique()
+            .loc[lambda x: x > 1]
+        )
+
+        # associated_COMID → multiple LakeCOMID
+        assoc_conflicts = (
+            lake.groupby("associated_COMID")["LakeCOMID"]
+            .nunique()
+            .loc[lambda x: x > 1]
+        )
+
+        if not lake_conflicts.empty or not assoc_conflicts.empty:
+
+            print("\nLakeCOMID with multiple associated_COMID:")
+            print(lake[lake["LakeCOMID"].isin(lake_conflicts.index)]
+                  [["LakeCOMID", "associated_COMID"]]
+                  .sort_values("LakeCOMID"))
+
+            print("\nassociated_COMID with multiple LakeCOMID:")
+            print(lake[lake["associated_COMID"].isin(assoc_conflicts.index)]
+                  [["LakeCOMID", "associated_COMID"]]
+                  .sort_values("associated_COMID"))
+
             raise ValueError("Mapping is not one-to-one between LakeCOMID and associated_COMID")
 
         # ------------------ #
