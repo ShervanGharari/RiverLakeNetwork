@@ -15,3 +15,10 @@ documentation for details.
    :maxdepth: 2
    :caption: Contents:
 
+API Reference
+=============
+
+.. toctree::
+   :maxdepth: 2
+
+   burnlakes
