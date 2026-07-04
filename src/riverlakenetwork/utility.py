@@ -1,7 +1,6 @@
 import geopandas as gpd
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
 import subprocess
 import os
 from   shapely.geometry import Point, LineString, MultiLineString
@@ -1066,3 +1065,141 @@ class Utility:
         cat.reset_index(drop=True, inplace=True)
         # return
         return riv, cat
+
+    @staticmethod
+    def normalize_single_segment_lakes(
+        single_segment_lakesID_position=None,
+        single_segment_lakes_global_position: str = "down",
+    ):
+        """
+        Normalize single-segment lake inputs into:
+            {COMID: "up" or "down"}
+
+        Parameters
+        ----------
+        single_segment_lakesID_position : list | set | dict | None
+            - None or empty → returns empty dict
+            - list/set → assign all to global position
+            - dict → respects per-lake direction, fallback to global
+
+        single_segment_lakes_global_position : str
+            Default direction ("up" or "down") when not provided
+
+        Returns
+        -------
+        dict
+            {COMID: "up" | "down"}
+        """
+
+        valid_dirs = {"up", "down"}
+
+        # ------------------ #
+        # 0. Validate global position
+        # ------------------ #
+        if single_segment_lakes_global_position is None:
+            single_segment_lakes_global_position = "down"
+
+        single_segment_lakes_global_position = str(
+            single_segment_lakes_global_position
+        ).lower()
+
+        if single_segment_lakes_global_position not in valid_dirs:
+            raise ValueError(
+                f"Invalid global position '{single_segment_lakes_global_position}'. "
+                f"Allowed: 'up', 'down'"
+            )
+
+        # ------------------ #
+        # 1. Empty / None
+        # ------------------ #
+        if not single_segment_lakesID_position:
+            return {}
+
+        # ------------------ #
+        # 2. List / Set
+        # ------------------ #
+        if isinstance(single_segment_lakesID_position, (list, set)):
+            return {
+                int(k): single_segment_lakes_global_position
+                for k in single_segment_lakesID_position
+            }
+
+        # ------------------ #
+        # 3. Dict input
+        # ------------------ #
+        if isinstance(single_segment_lakesID_position, dict):
+            out = {}
+
+            for k, v in single_segment_lakesID_position.items():
+
+                try:
+                    k = int(k)
+                except Exception:
+                    raise ValueError(f"Invalid COMID key: {k}")
+
+                if v is None:
+                    out[k] = single_segment_lakes_global_position
+                else:
+                    v = str(v).lower()
+
+                    if v not in valid_dirs:
+                        raise ValueError(
+                            f"Invalid direction '{v}' for COMID {k}. "
+                            f"Allowed: 'up', 'down'"
+                        )
+
+                    out[k] = v
+
+            return out
+
+        # ------------------ #
+        # 4. Invalid type
+        # ------------------ #
+        raise TypeError(
+            "single_segment_lakesID_position must be list, set, dict, or None"
+        )
+
+    @staticmethod
+    def normalize_ids(input_data):
+        """
+        Normalize input into a clean set of integer COMIDs.
+
+        Accepted inputs:
+        - list: [1, 2, 3]
+        - set: {1, 2, 3}
+        - dict: {1: "up", 2: "down"} → keys are extracted
+
+        Returns
+        -------
+        set[int]
+        """
+
+        # ------------------ #
+        # 1. None or empty
+        # ------------------ #
+        if not input_data:
+            return set()
+
+        # ------------------ #
+        # 2. List or set
+        # ------------------ #
+        if isinstance(input_data, (list, set)):
+            try:
+                return {int(x) for x in input_data}
+            except Exception:
+                raise ValueError("All elements must be convertible to int")
+
+        # ------------------ #
+        # 3. Dict → take keys
+        # ------------------ #
+        elif isinstance(input_data, dict):
+            try:
+                return {int(k) for k in input_data.keys()}
+            except Exception:
+                raise ValueError("All dict keys must be convertible to int")
+
+        # ------------------ #
+        # 4. Invalid input
+        # ------------------ #
+        else:
+            raise TypeError("Input must be list, set, dict, or None")

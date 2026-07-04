@@ -58,6 +58,8 @@ dev = [
   "flake8",
   "build",
   "twine",
+  "sphinx",
+  "sphinx-rtd-theme",
 ]
 
 
@@ -73,3 +75,7 @@ package-dir = {"" = "src"}
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
