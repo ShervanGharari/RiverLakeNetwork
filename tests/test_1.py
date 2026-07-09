@@ -7,6 +7,67 @@ from shapely.geometry import Polygon, LineString
 from shapely import affinity
 from riverlakenetwork import Utility, BurnLakes
 
+#
+def assert_gdfs_equal(
+    gdf1,
+    gdf2,
+    key_col="COMID",
+    tol=1e-5,
+    max_col_name_length=None):
+    """
+    Assert two GeoDataFrames are equal (attributes only).
+
+    Parameters
+    ----------
+    gdf1, gdf2 : GeoDataFrame
+        GeoDataFrames to compare.
+    key_col : str
+        Column used for sorting.
+    tol : float
+        Numerical comparison tolerance.
+    max_col_name_length : int or None
+        If provided and smaller than the column name length,
+        truncate column names to this length before comparison.
+        Use 10 for ESRI Shapefile compatibility.
+    """
+
+    # Sort
+    df1 = gdf1.sort_values(key_col).reset_index(drop=True)
+    df2 = gdf2.sort_values(key_col).reset_index(drop=True)
+
+    # Drop geometry
+    df1 = df1.drop(columns="geometry", errors="ignore")
+    df2 = df2.drop(columns="geometry", errors="ignore")
+
+    # Handle shapefile column name limitation
+    if max_col_name_length is not None:
+        if max_col_name_length < 100:
+            df1.columns = [
+                c[:max_col_name_length] for c in df1.columns
+            ]
+            df2.columns = [
+                c[:max_col_name_length] for c in df2.columns
+            ]
+
+    # # Shape check
+    # assert df1.shape == df2.shape, \
+    #     f"Shape mismatch: {df1.shape} != {df2.shape}"
+
+    # # Column check
+    # assert set(df1.columns) == set(df2.columns), \
+    #     f"Column mismatch:\nOnly in df1: {set(df1.columns) - set(df2.columns)}\nOnly in df2: {set(df2.columns) - set(df1.columns)}"
+
+    # Align columns
+    df1 = df1[sorted(df1.columns)]
+    df2 = df2[sorted(df2.columns)]
+
+    # Convert numerics
+    df1 = df1.apply(pd.to_numeric, errors="ignore")
+    df2 = df2.apply(pd.to_numeric, errors="ignore")
+
+    print(df1)
+    print(df2)
+
 def test1():
 
     # ============================================================
@@ -157,68 +218,6 @@ def test1():
     # burn lakes into river network
     bl = BurnLakes(InputData = config,
                    SingleSegmentProcessing = True)
-
-    #
-    def assert_gdfs_equal(
-        gdf1,
-        gdf2,
-        key_col="COMID",
-        tol=1e-5,
-        max_col_name_length=None):
-        """
-        Assert two GeoDataFrames are equal (attributes only).
-
-        Parameters
-        ----------
-        gdf1, gdf2 : GeoDataFrame
-            GeoDataFrames to compare.
-        key_col : str
-            Column used for sorting.
-        tol : float
-            Numerical comparison tolerance.
-        max_col_name_length : int or None
-            If provided and smaller than the column name length,
-            truncate column names to this length before comparison.
-            Use 10 for ESRI Shapefile compatibility.
-        """
-
-        # Sort
-        df1 = gdf1.sort_values(key_col).reset_index(drop=True)
-        df2 = gdf2.sort_values(key_col).reset_index(drop=True)
-
-        # Drop geometry
-        df1 = df1.drop(columns="geometry", errors="ignore")
-        df2 = df2.drop(columns="geometry", errors="ignore")
-
-        # Handle shapefile column name limitation
-        if max_col_name_length is not None:
-            if max_col_name_length < 100:
-                df1.columns = [
-                    c[:max_col_name_length] for c in df1.columns
-                ]
-                df2.columns = [
-                    c[:max_col_name_length] for c in df2.columns
-                ]
-
-        # # Shape check
-        # assert df1.shape == df2.shape, \
-        #     f"Shape mismatch: {df1.shape} != {df2.shape}"
-
-        # # Column check
-        # assert set(df1.columns) == set(df2.columns), \
-        #     f"Column mismatch:\nOnly in df1: {set(df1.columns) - set(df2.columns)}\nOnly in df2: {set(df2.columns) - set(df1.columns)}"
-
-        # Align columns
-        df1 = df1[sorted(df1.columns)]
-        df2 = df2[sorted(df2.columns)]
-
-        # Convert numerics
-        df1 = df1.apply(pd.to_numeric, errors="ignore")
-        df2 = df2.apply(pd.to_numeric, errors="ignore")
-
-        print(df1)
-        print(df2)
-
 
     TEST_DIR = Path(__file__).parent.parent / "tests/test_1"
     print(TEST_DIR)
