@@ -214,6 +214,7 @@ def test1():
                 )
 
     TEST_DIR = Path(__file__).parent.parent / "tests/test_1"
+    print(TEST_DIR)
 
     riv = gpd.read_file(TEST_DIR / "riv.gpkg")
     assert_gdfs_equal(riv, bl.riv)
