@@ -49,13 +49,13 @@ def assert_dfs_equal(
                 c[:max_col_name_length] for c in df2.columns
             ]
 
-    # # Shape check
-    # assert df1.shape == df2.shape, \
-    #     f"Shape mismatch: {df1.shape} != {df2.shape}"
+    # Shape check
+    assert df1.shape == df2.shape, \
+        f"Shape mismatch: {df1.shape} != {df2.shape}"
 
-    # # Column check
-    # assert set(df1.columns) == set(df2.columns), \
-    #     f"Column mismatch:\nOnly in df1: {set(df1.columns) - set(df2.columns)}\nOnly in df2: {set(df2.columns) - set(df1.columns)}"
+    # Column check
+    assert set(df1.columns) == set(df2.columns), \
+        f"Column mismatch:\nOnly in df1: {set(df1.columns) - set(df2.columns)}\nOnly in df2: {set(df2.columns) - set(df1.columns)}"
 
     # Align columns
     df1 = df1[sorted(df1.columns)]
@@ -74,8 +74,59 @@ def assert_dfs_equal(
         except (ValueError, TypeError):
             pass
 
-    print(df1)
-    print(df2)
+    # Compare columns
+    for col in df1.columns:
+        s1 = df1[col]
+        s2 = df2[col]
+
+        # Numeric comparison
+        if (
+            pd.api.types.is_numeric_dtype(s1)
+            or pd.api.types.is_numeric_dtype(s2)
+        ):
+            # Convert both to numeric (None -> NaN)
+            s1 = pd.to_numeric(s1, errors="coerce")
+            s2 = pd.to_numeric(s2, errors="coerce")
+
+            # Difference
+            diff = np.abs(s1 - s2)
+
+            # Ignore NaN differences
+            total_diff = np.nansum(diff)
+
+            if total_diff > tol:
+                idx = np.where(~np.isclose(
+                    s1,
+                    s2,
+                    atol=tol,
+                    equal_nan=True
+                ))[0][:10]
+
+                details = "\n".join(
+                    f"row {i}: {s1.iloc[i]} != {s2.iloc[i]}"
+                    for i in idx
+                )
+
+                raise AssertionError(
+                    f"Numeric mismatch in column '{col}' "
+                    f"(sum absolute difference={total_diff}):\n{details}"
+                )
+
+        # String/object comparison
+        else:
+            equal = (s1 == s2) | (s1.isna() & s2.isna())
+
+            if not np.all(equal):
+                idx = np.where(~equal)[0][:10]
+
+                details = "\n".join(
+                    f"row {i}: {s1.iloc[i]} != {s2.iloc[i]}"
+                    for i in idx
+                )
+
+                raise AssertionError(
+                    f"Mismatch in column '{col}':\n{details}"
+                )
 
 def test1():
 
