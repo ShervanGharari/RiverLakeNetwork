@@ -8,7 +8,7 @@ from shapely import affinity
 from riverlakenetwork import Utility, BurnLakes
 
 #
-def assert_gdfs_equal(
+def assert_dfs_equal(
     gdf1,
     gdf2,
     key_col="COMID",
@@ -231,11 +231,12 @@ def test1():
     TEST_DIR = Path(__file__).parent.parent / "tests/test_1"
     print(TEST_DIR)
 
-    riv = gpd.read_file(TEST_DIR / "riv.shp", engine="pyogrio")
-    assert_gdfs_equal(riv, bl.riv, max_col_name_length=10)
+    riv = pd.read_csv(TEST_DIR / "riv.csv")
+    assert_dfs_equal(riv, bl.riv)
 
-    cat = gpd.read_file(TEST_DIR / "cat.shp", engine="pyogrio")
-    assert_gdfs_equal(cat, bl.cat, max_col_name_length=10)
+    cat = pd.read_csv(TEST_DIR / "cat.csv")
+    assert_dfs_equal(cat, bl.cat)
 
-    lake = gpd.read_file(TEST_DIR / "lake.shp", engine="pyogrio")
-    assert_gdfs_equal(lake, bl.lake, max_col_name_length=10)
+    lake = pd.read_csv(TEST_DIR / "lake.csv")
+    assert_dfs_equal(lake, bl.lake)
+
