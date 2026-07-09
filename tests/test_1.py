@@ -63,10 +63,10 @@ def assert_gdfs_equal(
 
     # Convert numerics
     for col in df1.columns:
-    try:
-        df1[col] = pd.to_numeric(df1[col])
-    except (ValueError, TypeError):
-        pass
+        try:
+            df1[col] = pd.to_numeric(df1[col])
+        except (ValueError, TypeError):
+            pass
 
     for col in df2.columns:
         try:
