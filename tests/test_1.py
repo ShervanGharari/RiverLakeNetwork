@@ -163,10 +163,24 @@ def test1():
         gdf1,
         gdf2,
         key_col="COMID",
-        tol=1e-5):
+        tol=1e-5,
+        max_col_name_length=None,
+    ):
         """
         Assert two GeoDataFrames are equal (attributes only).
-        Fails pytest test with clear message if mismatch.
+
+        Parameters
+        ----------
+        gdf1, gdf2 : GeoDataFrame
+            GeoDataFrames to compare.
+        key_col : str
+            Column used for sorting.
+        tol : float
+            Numerical comparison tolerance.
+        max_col_name_length : int or None
+            If provided and smaller than the column name length,
+            truncate column names to this length before comparison.
+            Use 10 for ESRI Shapefile compatibility.
         """
 
         # Sort
@@ -176,6 +190,16 @@ def test1():
         # Drop geometry
         df1 = df1.drop(columns="geometry", errors="ignore")
         df2 = df2.drop(columns="geometry", errors="ignore")
+
+        # Handle shapefile column name limitation
+        if max_col_name_length is not None:
+            if max_col_name_length < 100:
+                df1.columns = [
+                    c[:max_col_name_length] for c in df1.columns
+                ]
+                df2.columns = [
+                    c[:max_col_name_length] for c in df2.columns
+                ]
 
         # Shape check
         assert df1.shape == df2.shape, \
@@ -190,8 +214,8 @@ def test1():
         df2 = df2[sorted(df2.columns)]
 
         # Convert numerics
-        df1 = df1.apply(pd.to_numeric, errors='ignore')
-        df2 = df2.apply(pd.to_numeric, errors='ignore')
+        df1 = df1.apply(pd.to_numeric, errors="ignore")
+        df2 = df2.apply(pd.to_numeric, errors="ignore")
 
         # Compare values
         for col in df1.columns:
@@ -204,7 +228,7 @@ def test1():
                 equal = (s1 == s2) | (s1.isna() & s2.isna())
 
             if not np.all(equal):
-                idx = np.where(~equal)[0][:10]  # first 10 mismatches
+                idx = np.where(~equal)[0][:10]
                 details = "\n".join(
                     f"row {i}: {s1.iloc[i]} != {s2.iloc[i]}"
                     for i in idx
@@ -216,11 +240,11 @@ def test1():
     TEST_DIR = Path(__file__).parent.parent / "tests/test_1"
     print(TEST_DIR)
 
-    riv = gpd.read_file(TEST_DIR / "riv.gpkg")
-    assert_gdfs_equal(riv, bl.riv)
+    riv = gpd.read_file(TEST_DIR / "riv.shp")
+    assert_gdfs_equal(riv, bl.riv, max_col_name_length=10)
 
-    cat = gpd.read_file(TEST_DIR / "cat.gpkg")
-    assert_gdfs_equal(cat, bl.cat)
+    cat = gpd.read_file(TEST_DIR / "cat.shp")
+    assert_gdfs_equal(cat, bl.cat, max_col_name_length=10)
 
-    lake = gpd.read_file(TEST_DIR / "lake.gpkg")
-    assert_gdfs_equal(lake, bl.lake)
+    lake = gpd.read_file(TEST_DIR / "lake.shp")
+    assert_gdfs_equal(lake, bl.lake, max_col_name_length=10)
