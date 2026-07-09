@@ -212,13 +212,13 @@ def test1():
                 )
 
     # # test riv
-    # riv = gpd.read_file("./test_1/riv.gpkg")
-    # assert_gdfs_equal(riv, bl.riv)
+    riv = gpd.read_file("./test_1/riv.shp")
+    assert_gdfs_equal(riv, bl.riv)
 
-    # # test cat
-    # cat = gpd.read_file("./test_1/cat.gpkg")
-    # assert_gdfs_equal(cat, bl.cat)
+    # test cat
+    cat = gpd.read_file("./test_1/cat.shp")
+    assert_gdfs_equal(cat, bl.cat)
 
-    # # test lake
-    # lake = gpd.read_file("./test_1/lake.gpkg")
-    # assert_gdfs_equal(lake, bl.lake)
+    # test lake
+    lake = gpd.read_file("./test_1/lake.shp")
+    assert_gdfs_equal(lake, bl.lake)
