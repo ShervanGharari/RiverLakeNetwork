@@ -96,18 +96,18 @@ for pfaf, files in regions.items():
     }
 
     # burn lakes into river network
-    bl = BurnLakes(config,
-        single_segment_lakes_activate_flag = True,
-        single_segment_lakesID_position = {83279: "up",
+    bl = BurnLakes(InputData=config,
+        SingleSegmentProcessing = True,
+        SingleSegmentIdPosition = {83279: "up",
                                            84896: "up",
                                            6550: "up",
                                            87073: None, # will be populated by single_segment_global_position
                                            86960: None, # will be populated by single_segment_global_position
                                            6643: None, # will be populated by single_segment_global_position
                                            },
-        single_segment_lakesID_restrict = False, # if false it will try to resolve as much as one segment lakes
-        single_segment_lakes_remove_first_order_flag = True,
-        single_segment_lakes_global_position = "down")
+        SingleSegmentRestrictToIdPosition = False, # if false it will try to resolve as much as one segment lakes
+        SingleSegmentExcludeFirstOrder = True,
+        SingleSegmentGlobalPosition = "down")
 
     # create folder to save
     pfaf_base = f"pfaf{pfaf}"

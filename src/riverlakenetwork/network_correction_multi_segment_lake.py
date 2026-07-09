@@ -6,7 +6,7 @@ from   collections import defaultdict, deque
 from   .utility import Utility   # adjust path if needed
 
 
-class NetworkTopologyCorrection:
+class NetworkTopologyCorrectionMultiSegmentLakes:
 
     def __init__(
         self,
