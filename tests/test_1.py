@@ -153,7 +153,8 @@ def test1():
     }
 
     # burn lakes into river network
-    bl = BurnLakes(config)
+    bl = BurnLakes(InputData = config,
+                   SingleSegmentProcessing = True)
 
     #
     def assert_gdfs_equal(
