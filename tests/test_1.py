@@ -216,11 +216,11 @@ def test1():
     TEST_DIR = Path(__file__).parent.parent / "tests/test_1"
     print(TEST_DIR)
 
-    riv = gpd.read_file(TEST_DIR / "riv.gpkg")
+    riv = gpd.read_file(TEST_DIR / "riv.shp")
     assert_gdfs_equal(riv, bl.riv)
 
-    cat = gpd.read_file(TEST_DIR / "cat.gpkg")
+    cat = gpd.read_file(TEST_DIR / "cat.shp")
     assert_gdfs_equal(cat, bl.cat)
 
-    lake = gpd.read_file(TEST_DIR / "lake.gpkg")
+    lake = gpd.read_file(TEST_DIR / "lake.shp")
     assert_gdfs_equal(lake, bl.lake)
