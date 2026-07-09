@@ -1,3 +1,5 @@
+
+from pathlib import Path
 import pandas as pd
 import numpy as np
 import geopandas as gpd
@@ -211,14 +213,13 @@ def test1():
                     f"Mismatch in column '{col}' (showing first {len(idx)}):\n{details}"
                 )
 
-    # # test riv
-    riv = gpd.read_file("./test_1/riv.shp")
+    TEST_DIR = Path(__file__).parent.parent / "test_1"
+
+    riv = gpd.read_file(TEST_DIR / "riv.shp")
     assert_gdfs_equal(riv, bl.riv)
 
-    # test cat
-    cat = gpd.read_file("./test_1/cat.shp")
+    cat = gpd.read_file(TEST_DIR / "cat.shp")
     assert_gdfs_equal(cat, bl.cat)
 
-    # test lake
-    lake = gpd.read_file("./test_1/lake.shp")
+    lake = gpd.read_file(TEST_DIR / "lake.shp")
     assert_gdfs_equal(lake, bl.lake)
