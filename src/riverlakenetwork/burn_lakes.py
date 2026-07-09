@@ -20,7 +20,7 @@ class BurnLakes:
     def __init__(
         self,
         InputData: dict,
-        SubsetLakeBuffer: float = 2.00,
+        SubsetLakeBuffer: float = 2.00, # degrees buffer, can be other units
         EnforceOneLakePerSegment: bool = False,
         SingleSegmentProcessing: bool = False,
         SingleSegmentIdPosition: Optional[Union[List[int], Set[int], Dict[int, str]]] = None,
