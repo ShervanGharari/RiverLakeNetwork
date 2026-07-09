@@ -62,8 +62,17 @@ def assert_gdfs_equal(
     df2 = df2[sorted(df2.columns)]
 
     # Convert numerics
-    df1 = df1.apply(pd.to_numeric, errors="ignore")
-    df2 = df2.apply(pd.to_numeric, errors="ignore")
+    for col in df1.columns:
+    try:
+        df1[col] = pd.to_numeric(df1[col])
+    except (ValueError, TypeError):
+        pass
+
+    for col in df2.columns:
+        try:
+            df2[col] = pd.to_numeric(df2[col])
+        except (ValueError, TypeError):
+            pass
 
     print(df1)
     print(df2)
