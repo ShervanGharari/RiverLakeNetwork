@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 import geopandas as gpd
 from shapely.geometry import Polygon, LineString
 from shapely import affinity
@@ -149,3 +150,69 @@ def test1():
     # burn lakes into river network
     bl = BurnLakes(config)
 
+    #
+    def assert_gdfs_equal(
+        gdf1,
+        gdf2,
+        key_col="COMID",
+        tol=1e-5):
+        """
+        Assert two GeoDataFrames are equal (attributes only).
+        Fails pytest test with clear message if mismatch.
+        """
+    
+        # Sort
+        df1 = gdf1.sort_values(key_col).reset_index(drop=True)
+        df2 = gdf2.sort_values(key_col).reset_index(drop=True)
+    
+        # Drop geometry
+        df1 = df1.drop(columns="geometry", errors="ignore")
+        df2 = df2.drop(columns="geometry", errors="ignore")
+    
+        # Shape check
+        assert df1.shape == df2.shape, \
+            f"Shape mismatch: {df1.shape} != {df2.shape}"
+    
+        # Column check
+        assert set(df1.columns) == set(df2.columns), \
+            f"Column mismatch:\nOnly in df1: {set(df1.columns) - set(df2.columns)}\nOnly in df2: {set(df2.columns) - set(df1.columns)}"
+    
+        # Align columns
+        df1 = df1[sorted(df1.columns)]
+        df2 = df2[sorted(df2.columns)]
+    
+        # Convert numerics
+        df1 = df1.apply(pd.to_numeric, errors='ignore')
+        df2 = df2.apply(pd.to_numeric, errors='ignore')
+    
+        # Compare values
+        for col in df1.columns:
+            s1 = df1[col]
+            s2 = df2[col]
+    
+            if pd.api.types.is_numeric_dtype(s1):
+                equal = np.isclose(s1, s2, atol=tol, equal_nan=True)
+            else:
+                equal = (s1 == s2) | (s1.isna() & s2.isna())
+    
+            if not np.all(equal):
+                idx = np.where(~equal)[0][:10]  # first 10 mismatches
+                details = "\n".join(
+                    f"row {i}: {s1.iloc[i]} != {s2.iloc[i]}"
+                    for i in idx
+                )
+                raise AssertionError(
+                    f"Mismatch in column '{col}' (showing first {len(idx)}):\n{details}"
+                )
+
+    # test riv
+    riv = gpd.read_file("./test_1/riv.gpkg")
+    assert_gdfs_equal(riv, bl.riv)
+
+    # test cat
+    cat = gpd.read_file("./test_1/cat.gpkg")
+    assert_gdfs_equal(cat, bl.cat)
+
+    # test lake
+    lake = gpd.read_file("./test_1/lake.gpkg")
+    assert_gdfs_equal(lake, bl.lake)
