@@ -4,7 +4,7 @@ Classes
 BurnLakes
 ---------
 
-.. class:: BurnLakes(config, lake_subset_margin=2.0, force_one_lake_per_riv_seg_flag=False, single_segment_lakes_activate_flag=False, single_segment_lakesID_position=None, single_segment_lakesID_restrict=True, single_segment_lakes_remove_first_order_flag=True, single_segment_lakes_global_position="down")
+.. class:: BurnLakes(InputData, SubsetLakeBuffer=2.0, EnforceOneLakePerSegment=False, SingleSegmentProcessing=False, SingleSegmentIdPosition=None, SingleSegmentRestrictToIdPosition=True, SingleSegmentExcludeFirstOrder=True, SingleSegmentGlobalPosition="down")
 
 Main workflow class for processing, resolving, and integrating lakes into a river network.
 
@@ -13,95 +13,100 @@ This class executes the full processing pipeline during initialization.
 Workflow
 ~~~~~~~~
 
-1. Load input datasets (catchments, rivers, lakes)
-2. Validate inputs
-3. Identify resolvable lakes
-4. Correct river network topology
-5. Identify single-segment lakes (optional)
-6. Apply topology corrections for single-segment lakes (optional)
-7. Validate outputs
+1. Load input datasets (catchments, rivers, lakes)  
+2. Validate inputs  
+3. Identify resolvable lakes  
+4. Correct river network topology  
+5. Identify single-segment lakes (optional)  
+6. Apply topology corrections for single-segment lakes (optional)  
+7. Validate outputs  
 
 Parameters
 ~~~~~~~~~~
 
-config
-  Configuration dictionary defining input datasets and column mappings.
+InputData
+Dictionary defining input datasets and column mappings.
 
-  The expected structure is:
+The expected structure is:
 
-  ::
-
-      config = {
-          "riv": riv,
-          "riv_dict": {
-              "COMID": {"col": "link_id"},
-              "NextDownCOMID": {"col": "ds_link_id"},
-              "length": {"col": "length"},
-              "uparea": {"col": "uparea", "unit": "km2"}
-          },
-          "cat": cat,
-          "cat_dict": {
-              "COMID": {"col": "link_id"},
-              "unitarea": {"col": "unitarea", "unit": "km2"}
-          },
-          "lake": lake,
-          "lake_dict": {
-              "LakeCOMID": {"col": "Hylak_id"},
-              "unitarea": {"col": "Lake_area", "unit": "km2"}
-          }
+::
+  InputData = {
+      "riv": riv,
+      "riv_dict": {
+          "COMID": {"col": "link_id"},
+          "NextDownCOMID": {"col": "ds_link_id"},
+          "length": {"col": "length"},
+          "uparea": {"col": "uparea", "unit": "km2"}
+      },
+      "cat": cat,
+      "cat_dict": {
+          "COMID": {"col": "link_id"},
+          "unitarea": {"col": "unitarea", "unit": "km2"}
+      },
+      "lake": lake,
+      "lake_dict": {
+          "LakeCOMID": {"col": "Hylak_id"},
+          "unitarea": {"col": "Lake_area", "unit": "km2"}
       }
+  }
 
-  Components:
+Components:
 
-  riv
-    River network (GeoDataFrame)
+riv
+River network (GeoDataFrame)
 
-  riv_dict
-    Mapping of river attributes:
-    
-    - COMID: unique river segment ID  
-    - NextDownCOMID: downstream segment ID  
-    - length: segment length  
-    - uparea: upstream contributing area  
+riv_dict
+Mapping of river attributes:
 
-  cat
-    Catchment polygons (GeoDataFrame)
 
-  cat_dict
-    Mapping of catchment attributes:
-    
-    - COMID: catchment ID  
-    - unitarea: catchment area  
+- COMID: unique river segment ID  
+- NextDownCOMID: downstream segment ID  
+- length: segment length  
+- uparea: upstream contributing area  
 
-  lake
-    Lake polygons (GeoDataFrame)
+cat
+Catchment polygons (GeoDataFrame)
 
-  lake_dict
-    Mapping of lake attributes:
-    
-    - LakeCOMID: lake identifier  
-    - unitarea: lake surface area  
+cat_dict
+Mapping of catchment attributes:
 
-lake_subset_margin
-  Buffer distance used for lake subsetting.
 
-force_one_lake_per_riv_seg_flag
-  If True, enforces one lake per river segment.
+- COMID: catchment ID  
+- unitarea: catchment area  
 
-single_segment_lakes_activate_flag
-  Enables processing of single-segment lakes.
 
-single_segment_lakesID_position
-  Optional specification of lake placement rules (list, set, dict, or None).
+lake
+Lake polygons (GeoDataFrame)
 
-single_segment_lakesID_restrict
-  Restrict processing to specified lake IDs.
+lake_dict
+Mapping of lake attributes:
 
-single_segment_lakes_remove_first_order_flag
-  Remove first-order streams when identifying lakes.
 
-single_segment_lakes_global_position
-  Default placement direction ("down" or "up").
+- LakeCOMID: lake identifier  
+- unitarea: lake surface area  
+
+
+SubsetLakeBuffer
+Buffer distance used for spatial subsetting of lakes (in coordinate units, e.g., degrees).
+
+EnforceOneLakePerSegment
+If True, enforces that each river segment is associated with at most one lake.
+
+SingleSegmentProcessing
+Enables identification and processing of single-segment lakes.
+
+SingleSegmentIdPosition
+Optional specification of placement direction for specific lakes.
+Accepts list, set, or dictionary mapping lake IDs to "up" or "down".
+
+SingleSegmentRestrictToIdPosition
+If True, processing is restricted to lakes specified in SingleSegmentIdPosition.
+
+SingleSegmentExcludeFirstOrder
+If True, excludes first-order streams when identifying single-segment lakes.
+
+SingleSegmentGlobalPosition
+Default placement direction for single-segment lakes ("down" or "up").
 
 Attributes
 ~~~~~~~~~~
@@ -125,14 +130,15 @@ lake_org
   Original lake dataset after validation
 
 single_segment_lake
-  Single-segment lakes (if enabled)
+  Identified single-segment lakes (if enabled)
 
 Notes
 ~~~~~
 
-- Workflow is executed automatically during initialization.
-- Large datasets may require significant computation time.
-- Single-segment lake processing is optional.
+- The full workflow is executed automatically during initialization.  
+- Large datasets may require significant computation time.  
+- Single-segment lake processing is optional and controlled via flags.  
+- Lake placement rules are normalized internally using utility functions.
 
 Example
 ~~~~~~~
@@ -142,8 +148,8 @@ Example
     from riverlakenetwork import BurnLakes
 
     model = BurnLakes(
-        config=config,
-        single_segment_lakes_activate_flag=True
+        InputData=InputData,
+        SingleSegmentProcessing=True
     )
 
     riv = model.riv
