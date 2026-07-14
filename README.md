@@ -93,21 +93,37 @@ pip install riverlakenetwork
 
 ## Examples
 
-The repository includes several worked examples demonstrating lake integration across different river network products:
+* **Illustrative Example**
 
-* **Example 1 – MERIT Hydro + HydroLAKES**
-  Integration of HydroLAKES into a MERIT-derived river network
-  [`./examples/Example01_MERITDerivedHydroLAKES.ipynb`](./examples/Example01_MERITDerivedHydroLAKES.ipynb)
+  A simple synthetic example demonstrating the basic workflow and the concept of lake integration.
 
-* **Example 2 – HDMA + HydroLAKES**
-  Integration into an HDMA river network
-  [`./examples/Example02_HDMAHydroLAKES.ipynb`](./examples/Example02_HDMAHydroLAKES.ipynb)
+  `Illustrative Example <https://github.com/ShervanGharari/RiverLakeNetwork/blob/main/examples/Case01_IllustrativeExample/IllustrativeExample.ipynb>`_
 
-* **Example 3 – MERITBasins + HydroLAKES**
-  Integration into MERITBasins network
-  [`./examples/Example03_MERITBasinsHydroLAKES.ipynb`](./examples/Example03_MERITBasinsHydroLAKES.ipynb)
+* **HDMA + HydroLAKES**
 
-![Example comparison](./examples/Plots/Figure_2.png)
+  Integration of HydroLAKES into an HDMA river network.
+
+  `HDMA + HydroLAKES Example <https://github.com/ShervanGharari/RiverLakeNetwork/blob/main/examples/Case02_MultipleRiverNetwork/Case02A_HDMA/HDMAHydroLAKES.ipynb>`_
+
+* **MERITBasins + HydroLAKES**
+
+  Integration of HydroLAKES into the MERITBasins river network.
+
+  `MERITBasins + HydroLAKES Example <https://github.com/ShervanGharari/RiverLakeNetwork/blob/main/examples/Case02_MultipleRiverNetwork/Case02B_MERIT/MERITBasinsHydroLAKES.ipynb>`_
+
+* **MERIT Hydro + HydroLAKES**
+
+  Integration of HydroLAKES into a MERIT-derived river network.
+
+  `MERIT Hydro + HydroLAKES Example <https://github.com/ShervanGharari/RiverLakeNetwork/blob/main/examples/Case02_MultipleRiverNetwork/Case02C_Derived/MERITDerivedHydroLAKES.ipynb>`_
+
+* **Different Control Flags**
+
+  Demonstration of different user-defined options and control flags for controlling lake identification and integration.
+
+  `MERITBasins + HydroLAKES with Different Choices <https://github.com/ShervanGharari/RiverLakeNetwork/blob/main/examples/Case03_DifferentChoices/Case03_MERIT/MERITBasinsHydroLAKES.ipynb>`_
+
+![Example comparison](https://github.com/ShervanGharari/RiverLakeNetwork/blob/rename/examples/Case02_MultipleRiverNetwork/Case02X_Figure/Figure.png)
 
 ---
 
