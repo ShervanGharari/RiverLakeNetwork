@@ -24,6 +24,14 @@ Non-resolvable lakes remain implicitly represented through subbasin areas and do
 
 ---
 
+## Documentation
+
+The full documentation is available on Read the Docs:
+
+[RiverLakeNetwork Documentation](https://riverlakenetwork.readthedocs.io/)
+
+---
+
 ## Inputs (Vector-Based)
 
 ### River Network (`riv`)
