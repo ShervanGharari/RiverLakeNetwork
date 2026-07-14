@@ -39,7 +39,7 @@ Inputs
 ------
 
 River Network (``riv``)
------------------------
+~~~~~~~~~~~~~~~~~~~~~~~
 
 A line-based river network with required attributes:
 
@@ -58,7 +58,7 @@ A line-based river network with required attributes:
 If uparea does not exists for a river network, it can be calculated based on unitarea and RiverLakeNetwork Utility.compute_uparea functionality.
 
 Subbasins / Catchments (``cat``)
---------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Each subbasin must correspond exactly to one river COMID.
 
@@ -71,7 +71,7 @@ Each subbasin must correspond exactly to one river COMID.
 +----------+------------------------------+
 
 Lakes and Reservoirs (``lake``)
---------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 +----------+------------------------------+
 | Column   | Description                  |
