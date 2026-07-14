@@ -59,21 +59,17 @@ River Network (``riv``)
 
 A line-based river network with required attributes:
 
-+------------+--------------------------------------------------+
-| Column     | Description                                      |
-+============+==================================================+
-| COMID      | Unique river segment identifier                  |
-+------------+--------------------------------------------------+
-| NextDownID | Downstream segment ID (-9999 for outlets)        |
-+------------+--------------------------------------------------+
-| lengthm    | River segment length (meters)                    |
-+------------+--------------------------------------------------+
-| unitarea   | Local contributing area                          |
-+------------+--------------------------------------------------+
-| uparea     | Upstream contributing area                       |
-+------------+--------------------------------------------------+
-| geometry   | Line geometry (may be None for coastal segments) |
-+------------+--------------------------------------------------+
++---------------+--------------------------------------------+
+| Column        | Description                                |
++===============+============================================+
+| COMID         | Unique river segment identifier            |
++---------------+--------------------------------------------+
+| NextDownCOMID | Downstream segment ID (-9999 for outlets)  |
++---------------+--------------------------------------------+
+| length        | River segment length                       |
++---------------+--------------------------------------------+
+| uparea        | Upstream contributing area                 |
++------------+-----------------------------------------------+
 
 Subbasins / Catchments (``cat``)
 --------------------------------
@@ -87,8 +83,6 @@ Each subbasin must correspond exactly to one river COMID.
 +----------+------------------------------+
 | unitarea | Subbasin area                |
 +----------+------------------------------+
-| geometry | Polygon geometry             |
-+----------+------------------------------+
 
 Lakes and Reservoirs (``lake``)
 --------------------------------
@@ -96,11 +90,9 @@ Lakes and Reservoirs (``lake``)
 +----------+------------------------------+
 | Column   | Description                  |
 +==========+==============================+
-| LakeID   | Unique lake identifier       |
+| LakeCOMID| Unique lake identifier       |
 +----------+------------------------------+
 | unitarea | Lake surface area            |
-+----------+------------------------------+
-| geometry | Polygon geometry             |
 +----------+------------------------------+
 
 ------------------------------------------------------------

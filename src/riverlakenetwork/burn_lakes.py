@@ -229,11 +229,12 @@ class BurnLakes:
         print("=============================================================================")
         print("=== Output checker started at :", t0.strftime("%Y-%m-%d %H:%M:%S"), " ===")
 
-        OutputChecker(
-            riv=self.riv,
-            riv_org=self.riv_org,
-            lake=self.lake
-        )
+        checker = OutputChecker(riv=self.riv,
+                                riv_org=self.riv_org,
+                                lake=self.lake)
+
+        self.riv = checker.riv
+        del checker
 
         t1 = datetime.now()
         print("=== Output checker finished at:", t1.strftime("%Y-%m-%d %H:%M:%S"), " ===")

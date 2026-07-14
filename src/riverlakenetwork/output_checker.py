@@ -1,4 +1,7 @@
 import pandas as pd
+import re
+import numpy as np
+from copy import copy
 from collections import defaultdict
 import warnings
 from .utility import Utility
@@ -20,6 +23,7 @@ class OutputChecker:
         self.lake = lake
         self._check_lake_outlet_graph_simple()
         self._check_inoutflow_length()
+        self._check_outlet_uparea_difference()
         has_loop = Utility.check_network_loops(riv=self.riv, mapping={"id": "COMID", "next_id": "NextDownCOMID"})
 
     # --------------------------------------------------
@@ -395,3 +399,281 @@ class OutputChecker:
                     "  Recommended fix      : Merge or correct the lake geometries in the\n"
                     "                         lake shapefile and rerun the scripts.\n"
                 )
+
+    def _check_outlet_uparea_difference(self, tolerance=0.01):
+        """
+        Compare upstream contributing areas only when river topology is identical.
+
+        Topology consistency is checked using:
+
+        1. NextDownCOMID
+        2. maxup
+        3. Immediate upstream COMIDs (up1, up2, ..., upN)
+
+        Upstream area differences are calculated only when topology is identical.
+
+        Results are added to self.riv:
+
+            - uparea_difference
+            - uparea_percent
+
+        If topology differs, values remain NaN.
+        """
+
+        import re
+        import numpy as np
+        import pandas as pd
+        from copy import copy
+
+
+        # --------------------------------------------------
+        # Prepare river networks
+        # --------------------------------------------------
+        riv = copy(self.riv)
+        riv = Utility.add_immediate_upstream(riv)
+
+        riv_org = copy(self.riv_org)
+        riv_org = Utility.add_immediate_upstream(riv_org)
+
+
+        # --------------------------------------------------
+        # Required columns
+        # --------------------------------------------------
+        required = {
+            "COMID",
+            "uparea",
+            "maxup",
+            "NextDownCOMID"
+        }
+
+        for name, df in [
+            ("riv", riv),
+            ("riv_org", riv_org)
+        ]:
+
+            missing = required - set(df.columns)
+
+            if missing:
+                raise ValueError(
+                    f"Missing required columns in {name}: {missing}"
+                )
+
+
+        # --------------------------------------------------
+        # Detect upstream columns
+        # --------------------------------------------------
+        up_pattern = re.compile(r"^up\d+$")
+
+        riv_up_cols = {
+            c for c in riv.columns
+            if up_pattern.match(c)
+        }
+
+        org_up_cols = {
+            c for c in riv_org.columns
+            if up_pattern.match(c)
+        }
+
+        up_cols = sorted(
+            riv_up_cols.intersection(org_up_cols)
+        )
+
+
+        if not up_cols:
+            raise ValueError(
+                "No common upstream columns found between riv and riv_org."
+            )
+
+
+        # --------------------------------------------------
+        # Original river lookup
+        # --------------------------------------------------
+        riv_org_lookup = (
+            riv
+            .merge(
+                riv_org[["COMID", "uparea"]],
+                on="COMID",
+                how="left",
+                suffixes=("", "_org")
+            )
+        )
+
+        riv_org_lookup = (
+            riv_org
+            .drop_duplicates(subset="COMID")
+            .set_index("COMID")
+        )
+
+
+        # --------------------------------------------------
+        # Initialize output columns as NaN
+        # --------------------------------------------------
+        riv["uparea_difference"] = np.nan
+        riv["uparea_percent"] = np.nan
+
+
+        n_compared = 0
+        n_skipped_topology = 0
+        n_missing_comid = 0
+
+
+        # --------------------------------------------------
+        # Helper
+        # --------------------------------------------------
+        def get_upstream_set(row):
+
+            upstream = set()
+
+            for col in up_cols:
+
+                value = row[col]
+
+                if pd.isna(value):
+                    continue
+
+                upstream.add(int(value))
+
+            return upstream
+
+
+        # --------------------------------------------------
+        # Compare
+        # --------------------------------------------------
+        for idx, row in riv.iterrows():
+
+            comid = row["COMID"]
+
+
+            if comid not in riv_org_lookup.index:
+
+                n_missing_comid += 1
+                continue
+
+
+            row_org = riv_org_lookup.loc[comid]
+
+
+            # --------------------------------------------------
+            # 1. Downstream topology check
+            # --------------------------------------------------
+            next_down_match = (
+                row["NextDownCOMID"] ==
+                row_org["NextDownCOMID"]
+            )
+
+
+            if not next_down_match:
+
+                n_skipped_topology += 1
+                continue
+
+
+            # --------------------------------------------------
+            # 2. Number of upstream segments
+            # --------------------------------------------------
+            if row["maxup"] != row_org["maxup"]:
+
+                n_skipped_topology += 1
+                continue
+
+
+            # --------------------------------------------------
+            # 3. Upstream connectivity
+            # --------------------------------------------------
+            if get_upstream_set(row) != get_upstream_set(row_org):
+
+                n_skipped_topology += 1
+                continue
+
+
+            # --------------------------------------------------
+            # 4. Compare upstream area
+            # --------------------------------------------------
+            uparea_new = row["uparea"]
+            uparea_org = row_org["uparea"]
+
+
+            if (
+                pd.isna(uparea_new)
+                or pd.isna(uparea_org)
+                or uparea_org == 0
+            ):
+                continue
+
+
+            difference = uparea_new - uparea_org
+
+            percent = abs(difference) / uparea_org
+
+
+            riv.at[idx, "uparea_difference"] = difference
+            riv.at[idx, "uparea_percent"] = percent
+
+
+            n_compared += 1
+
+
+        # --------------------------------------------------
+        # Transfer results back
+        # --------------------------------------------------
+        self.riv = self.riv.merge(
+            riv[
+                [
+                    "COMID",
+                    "uparea_difference",
+                    "uparea_percent"
+                ]
+            ],
+            on="COMID",
+            how="left"
+        )
+
+
+        # Ensure numeric fields
+        self.riv["uparea_difference"] = pd.to_numeric(
+            self.riv["uparea_difference"],
+            errors="coerce"
+        )
+
+        self.riv["uparea_percent"] = pd.to_numeric(
+            self.riv["uparea_percent"],
+            errors="coerce"
+        )
+
+
+        # --------------------------------------------------
+        # Exceedance check
+        # --------------------------------------------------
+        exceeded = self.riv[
+            self.riv["uparea_percent"].notna()
+            &
+            (self.riv["uparea_percent"] > tolerance)
+        ]
+
+
+        # --------------------------------------------------
+        # Reporting
+        # --------------------------------------------------
+        if not exceeded.empty:
+
+            print(
+                "\n⚠️ Upstream area differences exceeding tolerance detected.\n"
+                f"  {len(exceeded)} segments exceed "
+                f"{tolerance*100:.2f}%.\n"
+                f"  {n_compared} segments compared.\n"
+                f"  {n_skipped_topology} skipped due to change in topology.\n"
+                f"  {n_missing_comid} COMIDs missing from original network due to lake coverage.\n\n"
+                "  Results stored in self.riv:\n"
+                "    - uparea_difference\n"
+                "    - uparea_percent\n"
+            )
+
+        else:
+
+            print(
+                f"✓ Upstream areas consistent within "
+                f"{tolerance*100:.2f}% tolerance.\n"
+                f"  {n_compared} segments compared.\n"
+                f"  {n_skipped_topology} skipped due to change in topology.\n"
+                f"  {n_missing_comid} COMIDs missing from original network due to lake coverage.\n"
+            )
