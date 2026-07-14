@@ -95,23 +95,28 @@ pip install riverlakenetwork
 
 * **Illustrative Example**
 
-  A simple synthetic example demonstrating the basic workflow and the concept of lake integration. ![link](https://github.com/ShervanGharari/RiverLakeNetwork/blob/main/examples/Case01_IllustrativeExample/IllustrativeExample.ipynb>)
+  A simple synthetic example demonstrating the basic workflow and the concept of lake integration.
+  [Illustrative Example](https://github.com/ShervanGharari/RiverLakeNetwork/blob/main/examples/Case01_IllustrativeExample/IllustrativeExample.ipynb)
 
 * **HDMA + HydroLAKES**
 
-  Integration of HydroLAKES into an HDMA river network. ![link](https://github.com/ShervanGharari/RiverLakeNetwork/blob/main/examples/Case02_MultipleRiverNetwork/Case02A_HDMA/HDMAHydroLAKES.ipynb>)
+  Integration of HydroLAKES into an HDMA river network.
+  [HDMA + HydroLAKES Example](https://github.com/ShervanGharari/RiverLakeNetwork/blob/main/examples/Case02_MultipleRiverNetwork/Case02A_HDMA/HDMAHydroLAKES.ipynb)
 
 * **MERITBasins + HydroLAKES**
 
-  Integration of HydroLAKES into the MERITBasins river network. ![link](https://github.com/ShervanGharari/RiverLakeNetwork/blob/main/examples/Case02_MultipleRiverNetwork/Case02B_MERIT/MERITBasinsHydroLAKES.ipynb)
+  Integration of HydroLAKES into the MERITBasins river network.
+  [MERITBasins + HydroLAKES Example](https://github.com/ShervanGharari/RiverLakeNetwork/blob/main/examples/Case02_MultipleRiverNetwork/Case02B_MERIT/MERITBasinsHydroLAKES.ipynb)
 
 * **MERIT Hydro + HydroLAKES**
 
-  Integration of HydroLAKES into a MERIT-derived river network. ![link](https://github.com/ShervanGharari/RiverLakeNetwork/blob/main/examples/Case02_MultipleRiverNetwork/Case02C_Derived/MERITDerivedHydroLAKES.ipynb)
+  Integration of HydroLAKES into a MERIT-derived river network.
+  [MERIT Hydro + HydroLAKES Example](https://github.com/ShervanGharari/RiverLakeNetwork/blob/main/examples/Case02_MultipleRiverNetwork/Case02C_Derived/MERITDerivedHydroLAKES.ipynb)
 
 * **Different Control Flags**
 
-  Demonstration of different user-defined options and control flags for controlling lake identification and integration. ![link](https://github.com/ShervanGharari/RiverLakeNetwork/blob/main/examples/Case03_DifferentChoices/Case03_MERIT/MERITBasinsHydroLAKES.ipynb)
+  Demonstration of different user-defined options and control flags for controlling lake identification and integration.
+  [MERITBasins + HydroLAKES with Different Choices](https://github.com/ShervanGharari/RiverLakeNetwork/blob/main/examples/Case03_DifferentChoices/Case03_MERIT/MERITBasinsHydroLAKES.ipynb)
 
 ![Example comparison](https://github.com/ShervanGharari/RiverLakeNetwork/blob/rename/examples/Case02_MultipleRiverNetwork/Case02X_Figure/Figure.png)
 
