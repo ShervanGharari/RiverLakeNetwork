@@ -71,6 +71,8 @@ A line-based river network with required attributes:
 | uparea        | Upstream contributing area                 |
 +------------+-----------------------------------------------+
 
+If uparea does not exists for a river network, it can be calculated based on unitarea and RiverLakeNetwork Utility.compute_uparea functionality.
+
 Subbasins / Catchments (``cat``)
 --------------------------------
 
@@ -127,19 +129,37 @@ The workflow is iterative and can be refined depending on modeling needs.
 📁 Examples
 -----------
 
-The repository includes several examples demonstrating lake integration:
+The repository includes several examples demonstrating lake integration and different configuration options:
 
-* Example 1 – MERIT Hydro + HydroLAKES
-  Integration into MERIT-derived river networks
-  ``examples/Example01_MERITDerivedHydroLAKES.ipynb``
+* **Illustrative Example**
 
-* Example 2 – HDMA + HydroLAKES
-  Integration into HDMA river networks
-  ``examples/Example02_HDMAHydroLAKES.ipynb``
+  A simple synthetic example demonstrating the basic workflow and lake integration concept.
 
-* Example 3 – MERITBasins + HydroLAKES
-  Integration into MERITBasins network
-  ``examples/Example03_MERITBasinsHydroLAKES.ipynb``
+  `Illustrative Example <https://github.com/ShervanGharari/RiverLakeNetwork/blob/main/examples/Case01_IllustrativeExample/IllustrativeExample.ipynb>`_
+
+* **MERIT Hydro + HydroLAKES**
+
+  Integration into MERIT-derived river networks.
+
+  `MERIT Hydro + HydroLAKES Example <https://github.com/ShervanGharari/RiverLakeNetwork/blob/main/examples/Case02_MultipleRiverNetwork/Case02C_Derived/MERITDerivedHydroLAKES.ipynb>`_
+
+* **HDMA + HydroLAKES**
+
+  Integration into HDMA river networks.
+
+  `HDMA + HydroLAKES Example <https://github.com/ShervanGharari/RiverLakeNetwork/blob/main/examples/Case02_MultipleRiverNetwork/Case02A_HDMA/HDMAHydroLAKES.ipynb>`_
+
+* **MERITBasins + HydroLAKES**
+
+  Integration into the MERITBasins river network.
+
+  `MERITBasins + HydroLAKES Example <https://github.com/ShervanGharari/RiverLakeNetwork/blob/main/examples/Case02_MultipleRiverNetwork/Case02B_MERIT/MERITBasinsHydroLAKES.ipynb>`_
+
+* **Different Control Flags**
+
+  Demonstration of different user-defined options and control flags for lake integration.
+
+  `MERITBasins + HydroLAKES with Different Choices <https://github.com/ShervanGharari/RiverLakeNetwork/blob/main/examples/Case03_DifferentChoices/Case03_MERIT/MERITBasinsHydroLAKES.ipynb>`_
 
 ------------------------------------------------------------
 

@@ -25,11 +25,14 @@ Parameters
 ~~~~~~~~~~
 
 InputData
-Dictionary defining input datasets and column mappings.
+---------
+
+``InputData`` is a dictionary defining the input datasets and their corresponding column mappings. It contains the river network, catchment, and lake datasets required for lake integration.
 
 The expected structure is:
 
 ::
+
   InputData = {
       "riv": riv,
       "riv_dict": {
@@ -50,87 +53,68 @@ The expected structure is:
       }
   }
 
-Components:
+InputData Components
+---------------------
 
-riv
-River network (GeoDataFrame)
+``riv``
+    River network represented as a GeoDataFrame.
 
-riv_dict
-Mapping of river attributes:
+``riv_dict``
+    Dictionary defining the mapping between river attributes and their corresponding columns:
 
+    - ``COMID``: Unique identifier of each river segment.
+    - ``NextDownCOMID``: Identifier of the downstream river segment.
+    - ``length``: Length of the river segment.
+    - ``uparea``: Upstream contributing drainage area associated with the river segment.
 
-- COMID: unique river segment ID  
-- NextDownCOMID: downstream segment ID  
-- length: segment length  
-- uparea: upstream contributing area  
+``cat``
+    Catchment polygons represented as a GeoDataFrame.
 
-cat
-Catchment polygons (GeoDataFrame)
+``cat_dict``
+    Dictionary defining the mapping between catchment attributes and their corresponding columns:
 
-cat_dict
-Mapping of catchment attributes:
+    - ``COMID``: Unique identifier of each catchment.
+    - ``unitarea``: Catchment area.
 
+``lake``
+    Lake and reservoir polygons represented as a GeoDataFrame.
 
-- COMID: catchment ID  
-- unitarea: catchment area  
+``lake_dict``
+    Dictionary defining the mapping between lake attributes and their corresponding columns:
 
-
-lake
-Lake polygons (GeoDataFrame)
-
-lake_dict
-Mapping of lake attributes:
-
-
-- LakeCOMID: lake identifier  
-- unitarea: lake surface area  
+    - ``LakeCOMID``: Unique identifier of each lake or reservoir.
+    - ``unitarea``: Surface area of the lake or reservoir.
 
 
-SubsetLakeBuffer
-Buffer distance used for spatial subsetting of lakes (in coordinate units, e.g., degrees).
+Additional Processing Parameters
+--------------------------------
 
-EnforceOneLakePerSegment
-If True, enforces that each river segment is associated with at most one lake.
+The following parameters control the lake identification and network correction procedures. These parameters are provided separately from ``InputData``.
 
-SingleSegmentProcessing
-Enables identification and processing of single-segment lakes.
+``SubsetLakeBuffer``
+    Buffer distance used for spatial pre-selection of lakes and reservoirs. The unit corresponds to the coordinate reference system of the input spatial data (e.g., degrees for geographic coordinates).
 
-SingleSegmentIdPosition
-Optional specification of placement direction for specific lakes.
-Accepts list, set, or dictionary mapping lake IDs to "up" or "down".
+``EnforceOneLakePerSegment``
+    Logical flag controlling whether each river segment is restricted to a maximum of one associated lake. When enabled, only one lake is retained for each river segment.
 
-SingleSegmentRestrictToIdPosition
-If True, processing is restricted to lakes specified in SingleSegmentIdPosition.
+``SingleSegmentProcessing``
+    Logical flag enabling the identification and integration of lakes associated with a single river segment.
 
-SingleSegmentExcludeFirstOrder
-If True, excludes first-order streams when identifying single-segment lakes.
+``SingleSegmentIdPosition``
+    Optional user-defined specification of the placement direction for individual single-segment lakes. The input can be provided as:
 
-SingleSegmentGlobalPosition
-Default placement direction for single-segment lakes ("down" or "up").
+    - A ``list`` or ``set`` of lake IDs, where the same placement direction is applied to all specified lakes.
+    - A ``dictionary`` mapping individual lake IDs to either ``"up"`` or ``"down"`` placement directions.
 
-Attributes
-~~~~~~~~~~
+``SingleSegmentRestrictToIdPosition``
+    Logical flag controlling whether single-segment lake processing is restricted only to lakes specified in ``SingleSegmentIdPosition``.
 
-cat
-  Processed catchment dataset (GeoDataFrame)
+``SingleSegmentExcludeFirstOrder``
+    Logical flag controlling whether first-order river segments are excluded during single-segment lake identification.
 
-riv
-  Processed river network (GeoDataFrame)
+``SingleSegmentGlobalPosition``
+    Default placement direction for single-segment lakes when no lake-specific direction is provided. Accepted values are ``"up"`` and ``"down"``.
 
-lake
-  Final resolved lake dataset (GeoDataFrame)
-
-cat_org
-  Original catchment dataset after validation
-
-riv_org
-  Original river dataset after validation
-
-lake_org
-  Original lake dataset after validation
-
-single_segment_lake
-  Identified single-segment lakes (if enabled)
 
 Notes
 ~~~~~
