@@ -414,10 +414,24 @@ class OutputChecker:
 
         Results are added to self.riv:
 
-            - uparea_difference
-            - uparea_percent
+            - uparea_difference : absolute upstream area difference
+            - uparea_fraction   : relative difference (0-1)
+            - uparea_percent    : relative difference (%)
 
         If topology differs, values remain NaN.
+
+        Parameters
+        ----------
+        tolerance : float, optional
+            Maximum allowed relative difference as fraction.
+            Default is 0.01 (1%).
+
+        Notes
+        -----
+        Differences are only evaluated for segments where upstream and downstream
+        topology are unchanged. This avoids reporting differences caused by
+        intentional river network modifications such as lake burning, river merging,
+        or topology corrections.
         """
 
         import re
@@ -460,7 +474,7 @@ class OutputChecker:
 
 
         # --------------------------------------------------
-        # Detect upstream columns
+        # Detect immediate upstream columns
         # --------------------------------------------------
         up_pattern = re.compile(r"^up\d+$")
 
@@ -473,6 +487,7 @@ class OutputChecker:
             c for c in riv_org.columns
             if up_pattern.match(c)
         }
+
 
         up_cols = sorted(
             riv_up_cols.intersection(org_up_cols)
@@ -489,16 +504,6 @@ class OutputChecker:
         # Original river lookup
         # --------------------------------------------------
         riv_org_lookup = (
-            riv
-            .merge(
-                riv_org[["COMID", "uparea"]],
-                on="COMID",
-                how="left",
-                suffixes=("", "_org")
-            )
-        )
-
-        riv_org_lookup = (
             riv_org
             .drop_duplicates(subset="COMID")
             .set_index("COMID")
@@ -506,9 +511,10 @@ class OutputChecker:
 
 
         # --------------------------------------------------
-        # Initialize output columns as NaN
+        # Initialize output fields
         # --------------------------------------------------
         riv["uparea_difference"] = np.nan
+        riv["uparea_fraction"] = np.nan
         riv["uparea_percent"] = np.nan
 
 
@@ -518,7 +524,7 @@ class OutputChecker:
 
 
         # --------------------------------------------------
-        # Helper
+        # Helper function
         # --------------------------------------------------
         def get_upstream_set(row):
 
@@ -537,13 +543,14 @@ class OutputChecker:
 
 
         # --------------------------------------------------
-        # Compare
+        # Compare river segments
         # --------------------------------------------------
         for idx, row in riv.iterrows():
 
             comid = row["COMID"]
 
 
+            # COMID not available in original network
             if comid not in riv_org_lookup.index:
 
                 n_missing_comid += 1
@@ -554,22 +561,16 @@ class OutputChecker:
 
 
             # --------------------------------------------------
-            # 1. Downstream topology check
+            # 1. Check downstream topology
             # --------------------------------------------------
-            next_down_match = (
-                row["NextDownCOMID"] ==
-                row_org["NextDownCOMID"]
-            )
-
-
-            if not next_down_match:
+            if row["NextDownCOMID"] != row_org["NextDownCOMID"]:
 
                 n_skipped_topology += 1
                 continue
 
 
             # --------------------------------------------------
-            # 2. Number of upstream segments
+            # 2. Check number of immediate upstream segments
             # --------------------------------------------------
             if row["maxup"] != row_org["maxup"]:
 
@@ -578,16 +579,20 @@ class OutputChecker:
 
 
             # --------------------------------------------------
-            # 3. Upstream connectivity
+            # 3. Check immediate upstream connectivity
             # --------------------------------------------------
-            if get_upstream_set(row) != get_upstream_set(row_org):
+            upstream_new = get_upstream_set(row)
+            upstream_org = get_upstream_set(row_org)
+
+
+            if upstream_new != upstream_org:
 
                 n_skipped_topology += 1
                 continue
 
 
             # --------------------------------------------------
-            # 4. Compare upstream area
+            # 4. Compare upstream areas
             # --------------------------------------------------
             uparea_new = row["uparea"]
             uparea_org = row_org["uparea"]
@@ -601,26 +606,54 @@ class OutputChecker:
                 continue
 
 
-            difference = uparea_new - uparea_org
+            difference = (
+                uparea_new -
+                uparea_org
+            )
 
-            percent = abs(difference) / uparea_org
+
+            fraction = (
+                abs(difference) /
+                uparea_org
+            )
 
 
-            riv.at[idx, "uparea_difference"] = difference
-            riv.at[idx, "uparea_percent"] = percent
+            percent = (
+                fraction * 100.0
+            )
+
+
+            riv.at[
+                idx,
+                "uparea_difference"
+            ] = difference
+
+
+            riv.at[
+                idx,
+                "uparea_fraction"
+            ] = fraction
+
+
+            riv.at[
+                idx,
+                "uparea_percent"
+            ] = percent
 
 
             n_compared += 1
 
 
+
         # --------------------------------------------------
-        # Transfer results back
+        # Transfer results back to self.riv
         # --------------------------------------------------
         self.riv = self.riv.merge(
             riv[
                 [
                     "COMID",
                     "uparea_difference",
+                    "uparea_fraction",
                     "uparea_percent"
                 ]
             ],
@@ -629,25 +662,26 @@ class OutputChecker:
         )
 
 
-        # Ensure numeric fields
-        self.riv["uparea_difference"] = pd.to_numeric(
-            self.riv["uparea_difference"],
-            errors="coerce"
-        )
+        # Ensure numeric attributes
+        for col in [
+            "uparea_difference",
+            "uparea_fraction",
+            "uparea_percent"
+        ]:
 
-        self.riv["uparea_percent"] = pd.to_numeric(
-            self.riv["uparea_percent"],
-            errors="coerce"
-        )
+            self.riv[col] = pd.to_numeric(
+                self.riv[col],
+                errors="coerce"
+            )
 
 
         # --------------------------------------------------
-        # Exceedance check
+        # Find exceedances
         # --------------------------------------------------
         exceeded = self.riv[
-            self.riv["uparea_percent"].notna()
+            self.riv["uparea_fraction"].notna()
             &
-            (self.riv["uparea_percent"] > tolerance)
+            (self.riv["uparea_fraction"] > tolerance)
         ]
 
 
@@ -661,11 +695,18 @@ class OutputChecker:
                 f"  {len(exceeded)} segments exceed "
                 f"{tolerance*100:.2f}%.\n"
                 f"  {n_compared} segments compared.\n"
-                f"  {n_skipped_topology} skipped due to change in topology.\n"
-                f"  {n_missing_comid} COMIDs missing from original network due to lake coverage.\n\n"
+                f"  {n_skipped_topology} skipped due to topology changes.\n"
+                f"  {n_missing_comid} COMIDs missing from original network, possibly masked by lakes.\n\n"
                 "  Results stored in self.riv:\n"
                 "    - uparea_difference\n"
-                "    - uparea_percent\n"
+                "    - uparea_fraction\n"
+                "    - uparea_percent\n\n"
+                "  The detected differences may result from discrepancies between "
+                "subbasin unit-area calculations and lake/reservoir unit-area calculations. "
+                "To reduce these differences, please recalculate the unit areas consistently "
+                "for subbasins, lakes, and river segments, and update the upstream contributing "
+                "areas for the corrected river network topology using "
+                "Utility.compute_uparea functionality before rerunning the workflow."
             )
 
         else:
@@ -674,6 +715,6 @@ class OutputChecker:
                 f"✓ Upstream areas consistent within "
                 f"{tolerance*100:.2f}% tolerance.\n"
                 f"  {n_compared} segments compared.\n"
-                f"  {n_skipped_topology} skipped due to change in topology.\n"
-                f"  {n_missing_comid} COMIDs missing from original network due to lake coverage.\n"
+                f"  {n_skipped_topology} skipped due to topology changes.\n"
+                f"  {n_missing_comid} COMIDs missing from original network possibily masked by lakes."
             )
