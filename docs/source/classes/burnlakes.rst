@@ -1,6 +1,3 @@
-Classes
-=======
-
 BurnLakes
 ---------
 
@@ -130,21 +127,7 @@ The following parameters control the lake identification and river network corre
 Notes
 ~~~~~
 
-- The upstream contributing area (``uparea``) attribute in ``riv`` is required for the workflow. If it is not available, it can be calculated from the river network topology and catchment unit areas using the RiverLakeNetwork utility function:
-
-  ::
-
-      from riverlakenetwork import Utility
-      
-      rivers = Utility.compute_uparea(
-          rivers,
-          mapping={
-              "id": "COMID",
-              "next_id": "NextDownID",
-              "unitarea": "AREA",
-          },
-          out_col="UPAREA"
-      )
+- The upstream contributing area (``uparea``) attribute in ``riv`` is required for the workflow. If it is not available, it can be calculated from the river network topology and catchment unit areas using the RiverLakeNetwork ``Utility.compute_uparea`` function.
 
 - The area units of the subbasins (``cat``) and lakes (``lake``) must be consistent. If different units are used, discrepancies may occur in the calculated upstream contributing areas after lake integration. These differences are reported in the final ``riv`` output through the columns ``difference_uparea``, ``difference_percent``, and ``difference_fraction``. Users can use these attributes to evaluate the consistency of the corrected river network compared to the original network.
 

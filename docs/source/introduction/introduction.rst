@@ -1,61 +1,45 @@
 .. RiverLakeNetwork documentation master file
 
-🔥 Burning Lakes and Reservoirs into River Network Topology
-============================================================
+RiverLakeNetwork
+================
 
-This package provides a Python-based workflow for integrating lakes and reservoirs into an existing river network topology. It combines vector river networks, lake/reservoir polygons, and subbasin polygons to produce a topologically consistent river–lake system suitable for hydrological modeling.
+**RiverLakeNetwork: A Python Package for Integrating Lakes and Reservoirs into River Networks**
 
-The main objective is to identify resolvable lakes and reservoirs based on river network density and update river connectivity, geometry, and contributing areas accordingly—without requiring DEM or land-cover inputs typically used in traditional hydro-conditioning workflows.
+This repository provides a **Python-based workflow for integrating lakes and reservoirs into existing river network topologies**. It combines **vector river networks, lake/reservoir polygons, and subbasin polygons** to produce a **topologically consistent river–lake system** suitable for river and lake routing applications.
 
-------------------------------------------------------------
+The primary objective is to **identify resolvable lakes and reservoirs based on river network density** and update river connectivity, geometry, and contributing areas accordingly—**without requiring DEM or land-cover inputs** typically used in traditional hydro-conditioning workflows. This approach avoids the over-representation or under-representation of lakes and reservoirs within existing river network topologies.
 
-🌍 Motivation
--------------
-
-Representing lakes and reservoirs consistently within river networks is challenging. Traditional approaches rely on:
-
-- Digital Elevation Model (DEM) conditioning
-- Flow-direction enforcement
-- Water-body masking or land-cover classification
-
-These approaches are often not available or are inconsistent when river networks are:
-
-- Manually digitized (blue-line networks)
-- Provided by external agencies or hydrographers
-- Derived from proprietary or legacy workflows
-
-Meanwhile, vector-based lake and reservoir datasets are widely available from satellite products and global inventories.
-
-This workflow bridges this gap by directly integrating vector river networks and vector lake/reservoir datasets.
 
 ------------------------------------------------------------
 
-🧠 Key Concept: Resolvable Lakes
---------------------------------
 
-Not all lakes must be explicitly represented in a river network.
+Motivation
+----------
 
-A lake or reservoir is considered *resolvable* if it is large enough—relative to the river network resolution—to meaningfully affect:
+Representing lakes and reservoirs consistently within river networks is a long-standing challenge. Existing river networks are commonly derived from DEMs, while lake and reservoir datasets are generated from different sources, including satellite observations, land-cover products, or locally mapped datasets.
 
-- Flow connectivity
-- River routing structure
-- Upstream contributing area distribution
+RiverLakeNetwork provides a workflow that directly integrates vector river networks with vector lake and reservoir datasets, allowing both components to be iteratively refined toward a consistent hydrological representation.
 
-Resolvable lakes typically:
 
-- Intersect multiple river segments or subbasins
-- Replace or modify river segments
-- Introduce explicit lake-routing behavior
-
-Non-resolvable lakes remain implicitly represented through subbasin areas and do not modify river topology.
 
 ------------------------------------------------------------
 
-📦 Required Inputs
-------------------
+Key Concept: Resolvable Lakes
+-----------------------------
+
+Not all lakes need to be explicitly represented within a river network.
+
+A lake or reservoir is considered **resolvable** when it is sufficiently represented at the resolution of the river network and can meaningfully influence flow connectivity. The ``BurnLakes`` class identifies both **multi-segment** and **single-segment** resolvable lakes and reservoirs based on spatial relationships, river network topology, upstream and downstream connectivity, and other network characteristics.
+
+Non-resolvable lakes remain implicitly represented through subbasin areas and do **not modify river network topology**.
+
+------------------------------------------------------------
+
+Inputs
+------
 
 River Network (``riv``)
-------------------------
+-----------------------
 
 A line-based river network with required attributes:
 
@@ -99,35 +83,8 @@ Lakes and Reservoirs (``lake``)
 
 ------------------------------------------------------------
 
-⚙️ Workflow Overview
---------------------
-
-1. Validate river–subbasin consistency
-2. Identify resolvable lakes based on network density
-3. Intersect lakes with river segments and subbasins
-4. Modify river connectivity and segment attributes
-5. Convert submerged river segments to zero-length links
-6. Reassign downstream connectivity through lakes
-7. Update affected subbasins (including coastal reclassification)
-8. Recompute upstream contributing areas
-9. Apply topology consistency checks
-
-The workflow is iterative and can be refined depending on modeling needs.
-
-------------------------------------------------------------
-
-🎯 Applications
----------------
-
-- Large-scale hydrological routing models
-- Lake-aware river network preprocessing
-- Harmonizing independently derived hydro datasets
-- Regional to global water resources modeling
-
-------------------------------------------------------------
-
-📁 Examples
------------
+Examples
+--------
 
 The repository includes several examples demonstrating lake integration and different configuration options:
 
@@ -163,10 +120,8 @@ The repository includes several examples demonstrating lake integration and diff
 
 ------------------------------------------------------------
 
-🧾 Citation
------------
-
-If you use this package or methodology, please cite:
+Citation
+--------
 
 Gharari, S., Vanderkelen, I., Tefs, A., Mizukami, N., Kluzek, E., Stadnyk, T., Lawrence, D., & Clark, M. P. (2024).
 *A flexible framework for simulating the water balance of lakes and reservoirs from local to global scales: mizuRoute-Lake.*
