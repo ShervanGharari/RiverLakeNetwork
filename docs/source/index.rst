@@ -11,3 +11,8 @@ RiverLakeNetwork
    :maxdepth: 1
 
    classes/classes
+
+.. toctree::
+   :maxdepth: 1
+
+   examples/examples
