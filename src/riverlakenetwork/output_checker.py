@@ -414,9 +414,9 @@ class OutputChecker:
 
         Results are added to self.riv:
 
-            - uparea_difference : absolute upstream area difference
-            - uparea_fraction   : relative difference (0-1)
-            - uparea_percent    : relative difference (%)
+            - uparea_diff        : absolute upstream area difference
+            - uparea_diff_frac   : relative difference (0-1)
+            - uparea_diff_perc   : relative difference (%)
 
         If topology differs, values remain NaN.
 
@@ -513,9 +513,9 @@ class OutputChecker:
         # --------------------------------------------------
         # Initialize output fields
         # --------------------------------------------------
-        riv["uparea_difference"] = np.nan
-        riv["uparea_fraction"] = np.nan
-        riv["uparea_percent"] = np.nan
+        riv["uparea_diff"] = np.nan
+        riv["uparea_diff_frac"] = np.nan
+        riv["uparea_diff_perc"] = np.nan
 
 
         n_compared = 0
@@ -625,19 +625,19 @@ class OutputChecker:
 
             riv.at[
                 idx,
-                "uparea_difference"
+                "uparea_diff"
             ] = difference
 
 
             riv.at[
                 idx,
-                "uparea_fraction"
+                "uparea_diff_frac"
             ] = fraction
 
 
             riv.at[
                 idx,
-                "uparea_percent"
+                "uparea_diff_perc"
             ] = percent
 
 
@@ -652,9 +652,9 @@ class OutputChecker:
             riv[
                 [
                     "COMID",
-                    "uparea_difference",
-                    "uparea_fraction",
-                    "uparea_percent"
+                    "uparea_diff",
+                    "uparea_diff_frac",
+                    "uparea_diff_perc"
                 ]
             ],
             on="COMID",
@@ -664,9 +664,9 @@ class OutputChecker:
 
         # Ensure numeric attributes
         for col in [
-            "uparea_difference",
-            "uparea_fraction",
-            "uparea_percent"
+            "uparea_diff",
+            "uparea_diff_frac",
+            "uparea_diff_perc"
         ]:
 
             self.riv[col] = pd.to_numeric(
@@ -679,9 +679,9 @@ class OutputChecker:
         # Find exceedances
         # --------------------------------------------------
         exceeded = self.riv[
-            self.riv["uparea_fraction"].notna()
+            self.riv["uparea_diff_frac"].notna()
             &
-            (self.riv["uparea_fraction"] > tolerance)
+            (self.riv["uparea_diff_frac"] > tolerance)
         ]
 
 
@@ -698,9 +698,9 @@ class OutputChecker:
                 f"  {n_skipped_topology} skipped due to topology changes.\n"
                 f"  {n_missing_comid} COMIDs missing from original network, possibly masked by lakes.\n\n"
                 "  Results stored in self.riv:\n"
-                "    - uparea_difference\n"
-                "    - uparea_fraction\n"
-                "    - uparea_percent\n\n"
+                "    - uparea_diff\n"
+                "    - uparea_diff_frac\n"
+                "    - uparea_diff_perc\n\n"
                 "  The detected differences may result from discrepancies between "
                 "subbasin unit-area calculations and lake/reservoir unit-area calculations. "
                 "To reduce these differences, please recalculate the unit areas consistently "

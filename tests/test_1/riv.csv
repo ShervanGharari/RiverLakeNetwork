@@ -1,4 +1,4 @@
-COMID,NextDownCOMID,length,LakeCOMID,unitarea,exorheic,endorheic,single_segment_lake,islake,inflow,outflow,inoutflow,non_channelized,maxup,up1,up2,up3,up4,up5,uparea,uparea_difference,uparea_fraction,uparea_percent
+COMID,NextDownCOMID,length,LakeCOMID,unitarea,exorheic,endorheic,single_segment_lake,islake,inflow,outflow,inoutflow,non_channelized,maxup,up1,up2,up3,up4,up5,uparea,uparea_diff,uparea_diff_frac,uparea_diff_perc
 1,15,0.5,,3.75,,,,,1.0,0.0,0.0,0,0,0,0,0,0,0,3.75,,,
 2,15,0.5,,3.75,,,,,1.0,0.0,0.0,0,0,0,0,0,0,0,3.75,,,
 3,16,1.7677669529663689,,7.375,,,,,1.0,1.0,1.0,0,1,15,0,0,0,0,15.875,,,

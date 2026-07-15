@@ -105,8 +105,8 @@ for pfaf, files in regions.items():
                                            86960: None, # will be populated by single_segment_global_position
                                            6643: None, # will be populated by single_segment_global_position
                                            },
-        SingleSegmentRestrictToIdPosition = False, # if false it will try to resolve as much as one segment lakes
-        SingleSegmentExcludeFirstOrder = True,
+        SingleSegmentRestrictToIdPosition = True, # if false it will try to resolve as much as one segment lakes
+        SingleSegmentExcludeFirstOrder = False,
         SingleSegmentGlobalPosition = "down")
 
     # create folder to save
