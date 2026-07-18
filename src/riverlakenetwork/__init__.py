@@ -1,3 +1,7 @@
+from importlib.metadata import version
+
+__version__ = version("riverlakenetwork")
+
 # Import core classes and functions
 from .input_loader                           import InputLoader
 from .input_checker                          import InputChecker
