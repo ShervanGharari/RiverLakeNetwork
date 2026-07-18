@@ -1,54 +1,40 @@
-# 🔥 Burning Lakes and Reservoirs into River Network Topology
+# RiverLakeNetwork: A Python Package for Integrating Lakes and Reservoirs into River Networks
 
-This repository provides a **Python-based workflow for integrating lakes and reservoirs into an existing river network topology**. It combines **vector river networks, lake/reservoir polygons, and subbasin polygons** to produce a **topologically consistent river–lake system** suitable for hydrological modeling.
+This repository provides a **Python-based workflow for integrating lakes and reservoirs into existing river network topologies**. It combines **vector river networks, lake/reservoir polygons, and subbasin polygons** to produce a **topologically consistent river–lake system** suitable for river and lake routing applications.
 
-The primary objective is to **identify resolvable lakes and reservoirs based on river network density** and to update river connectivity, geometry, and contributing areas accordingly—**without requiring DEM or land-cover inputs** typically used in traditional hydro-conditioning workflows.
-
----
-
-## 🌍 Motivation
-
-Representing lakes and reservoirs consistently within river networks is a long-standing challenge. Conventional approaches typically rely on:
-
-* DEM conditioning
-* Flow-direction enforcement
-* Water-body masking or land-cover classification
-
-However, these datasets are often unavailable or incompatible, especially when river networks are:
-
-* Manually digitized (*blue-line networks*)
-* Provided by external agencies or hydrographers
-* Derived from proprietary or legacy workflows
-
-At the same time, **vector-based lake and reservoir datasets** (e.g., satellite-derived products or cartographic inventories) are widely available.
-
-This workflow bridges this gap by **directly integrating vector river networks and vector lake/reservoir datasets**, allowing both to be iteratively refined toward a consistent hydrological representation.
+The primary objective is to **identify resolvable lakes and reservoirs based on river network density** and update river connectivity, geometry, and contributing areas accordingly—**without requiring DEM or land-cover inputs** typically used in traditional hydro-conditioning workflows. This approach avoids the over-representation or under-representation of lakes and reservoirs within existing river network topologies.
 
 ---
 
-## 🧠 Key Concept: Resolvable Lakes
+## Motivation
 
-Not all lakes need to be explicitly represented in a river network.
+Representing lakes and reservoirs consistently within river networks is a long-standing challenge. Existing river networks are commonly derived from DEMs, while lake and reservoir datasets are generated from different sources, including satellite observations, land-cover products, or locally mapped datasets.
 
-A lake or reservoir is considered **resolvable** when it is large enough—relative to the river network resolution—to meaningfully influence:
-
-* Flow connectivity
-* River routing structure
-* Upstream contributing area distribution
-
-Resolvable lakes typically:
-
-* Intersect multiple river segments or subbasins
-* Replace or modify river segments
-* Introduce explicit lake-routing behavior
-
-Non-resolvable lakes remain implicitly represented through subbasin areas and do **not modify river topology**.
+RiverLakeNetwork provides a workflow that directly integrates vector river networks with vector lake and reservoir datasets, allowing both components to be iteratively refined toward a consistent hydrological representation.
 
 ---
 
-## 📦 Required Inputs (Vector-Based)
+## Key Concept: Resolvable Lakes
 
-### 1️⃣ River Network (`riv`)
+Not all lakes need to be explicitly represented within a river network.
+
+A lake or reservoir is considered **resolvable** when it is sufficiently represented at the resolution of the river network and can meaningfully influence flow connectivity. The `BurnLakes` class identifies both **multi-segment** and **single-segment** resolvable lakes and reservoirs based on spatial relationships, river network topology, upstream and downstream connectivity, and other network characteristics.
+
+Non-resolvable lakes remain implicitly represented through subbasin areas and do **not modify river network topology**.
+
+---
+
+## Documentation
+
+The full documentation is available on Read the Docs:
+
+[RiverLakeNetwork Documentation](https://riverlakenetwork.readthedocs.io/)
+
+---
+
+## Inputs (Vector-Based)
+
+### River Network (`riv`)
 
 A line-based river network with the following required attributes:
 
@@ -56,14 +42,14 @@ A line-based river network with the following required attributes:
 | ------------ | -------------------------------------------------- |
 | `COMID`      | Unique river segment identifier                    |
 | `NextDownID` | Downstream segment ID (`-9999` for outlets)        |
-| `lengthm`    | River segment length (meters)                      |
-| `unitarea`   | Local contributing area                            |
+| `length`     | River segment length                               |
 | `uparea`     | Upstream accumulated contributing area             |
-| `geometry`   | Line geometry (may be `None` for coastal segments) |
+
+The upstream contributing area (``uparea``) attribute in ``riv`` is required for the workflow. If it is not available, it can be calculated from the river network topology and catchment unit areas using the RiverLakeNetwork ``Utility.compute_uparea`` function.
 
 ---
 
-### 2️⃣ Subbasins / Catchments (`cat`)
+### Subbasins / Catchments (`cat`)
 
 A polygon dataset defining contributing areas for each river segment.
 
@@ -73,11 +59,10 @@ Each subbasin must correspond exactly to one river `COMID`.
 | ---------- | ------------------------------------------- |
 | `COMID`    | Subbasin identifier (matches river `COMID`) |
 | `unitarea` | Subbasin area                               |
-| `geometry` | Polygon geometry                            |
 
 ---
 
-### 3️⃣ Lakes and Reservoirs (`lake`)
+### Lakes and Reservoirs (`lake`)
 
 A polygon dataset representing lakes and reservoirs.
 
@@ -85,11 +70,10 @@ A polygon dataset representing lakes and reservoirs.
 | ---------- | --------------------------------------------------- |
 | `LakeID`   | Unique lake/reservoir identifier                    |
 | `unitarea` | Lake surface area (consistent units with subbasins) |
-| `geometry` | Polygon geometry                                    |
 
 ---
 
-## 🔧 Installation
+## Installation
 
 ### Local installation
 
@@ -115,54 +99,38 @@ pip install riverlakenetwork
 
 ---
 
-## ⚙️ Workflow Overview
+## Examples
 
-1. Validate river–subbasin consistency
-2. Identify resolvable lakes based on network density
-3. Intersect lakes with river segments and subbasins
-4. Modify river connectivity and segment attributes
-5. Convert submerged river segments to zero-length links
-6. Reassign downstream connectivity through lakes
-7. Update affected subbasins (including coastal reclassification)
-8. Recompute upstream contributing areas
-9. Apply topology consistency checks
+* **Illustrative Example**
 
-The workflow is **iterative**, allowing refinement of lake representation depending on modeling needs.
+  A simple synthetic example demonstrating the basic workflow and the concept of lake integration.
+  [Illustrative Example](https://github.com/ShervanGharari/RiverLakeNetwork/blob/main/examples/Case01_IllustrativeExample/IllustrativeExample.ipynb)
 
----
+* **HDMA + HydroLAKES**
 
-## 🎯 Applications
+  Integration of HydroLAKES into an HDMA river network.
+  [HDMA + HydroLAKES Example](https://github.com/ShervanGharari/RiverLakeNetwork/blob/main/examples/Case02_MultipleRiverNetwork/Case02A_HDMA/HDMAHydroLAKES.ipynb)
 
-* Large-scale hydrological routing models
-* Lake-aware river network preprocessing
-* Harmonizing independently derived hydro datasets
-* Regional to global water resources modeling
+* **MERITBasins + HydroLAKES**
 
----
+  Integration of HydroLAKES into the MERITBasins river network.
+  [MERITBasins + HydroLAKES Example](https://github.com/ShervanGharari/RiverLakeNetwork/blob/main/examples/Case02_MultipleRiverNetwork/Case02B_MERIT/MERITBasinsHydroLAKES.ipynb)
 
-## 📁 Examples
+* **MERIT Hydro + HydroLAKES**
 
-The repository includes several worked examples demonstrating lake integration across different river network products:
+  Integration of HydroLAKES into a MERIT-derived river network.
+  [MERIT Hydro + HydroLAKES Example](https://github.com/ShervanGharari/RiverLakeNetwork/blob/main/examples/Case02_MultipleRiverNetwork/Case02C_Derived/MERITDerivedHydroLAKES.ipynb)
 
-* **Example 1 – MERIT Hydro + HydroLAKES**
-  Integration of HydroLAKES into a MERIT-derived river network
-  [`./examples/Example01_MERITDerivedHydroLAKES.ipynb`](./examples/Example01_MERITDerivedHydroLAKES.ipynb)
+* **Different Control Flags**
 
-* **Example 2 – HDMA + HydroLAKES**
-  Integration into an HDMA river network
-  [`./examples/Example02_HDMAHydroLAKES.ipynb`](./examples/Example02_HDMAHydroLAKES.ipynb)
+  Demonstration of different user-defined options and control flags for controlling lake identification and integration.
+  [MERITBasins + HydroLAKES with Different Choices](https://github.com/ShervanGharari/RiverLakeNetwork/blob/main/examples/Case03_DifferentChoices/Case03_MERIT/MERITBasinsHydroLAKES.ipynb)
 
-* **Example 3 – MERITBasins + HydroLAKES**
-  Integration into MERITBasins network
-  [`./examples/Example03_MERITBasinsHydroLAKES.ipynb`](./examples/Example03_MERITBasinsHydroLAKES.ipynb)
-
-![Example comparison](./examples/Plots/Figure_2.png)
+![Example comparison](https://github.com/ShervanGharari/RiverLakeNetwork/blob/rename/examples/Case02_MultipleRiverNetwork/Case02X_Figure/Figure.png)
 
 ---
 
-## 🧾 How to Cite
-
-If you use this tool or its methodology, please cite:
+## How to Cite
 
 > Gharari, S., Vanderkelen, I., Tefs, A., Mizukami, N., Kluzek, E., Stadnyk, T., Lawrence, D., & Clark, M. P. (2024).
 > *A flexible framework for simulating the water balance of lakes and reservoirs from local to global scales: mizuRoute‐Lake.*

@@ -3,21 +3,21 @@ import pandas as pd
 from typing import Optional, Union, List, Set, Dict
 from .utility import Utility
 
-class SingleSegmentLakes:
+class SingleSegmentLakesIdentifier:
 
     def __init__(
         self,
         cat: gpd.GeoDataFrame,
         lake: gpd.GeoDataFrame,
         riv: gpd.GeoDataFrame,
-        lake_subset_margin: float = 2.0,
-        force_one_lake_per_riv_seg_flag: bool = False,
-        single_segment_lakesID_position: Optional[
+        SubsetLakeBuffer: float = 2.0,
+        EnforceOneLakePerSegment: bool = False,
+        SingleSegmentIdPosition: Optional[
             Union[List[int], Set[int], Dict[int, str]]
         ] = None,
-        single_segment_lakes_remove_first_order_flag: bool = True,
-        single_segment_lakesID_restrict: bool = True,
-        single_segment_lakes_global_position: str = "down",
+        SingleSegmentExcludeFirstOrder: bool = True,
+        SingleSegmentRestrictToIdPosition: bool = True,
+        SingleSegmentGlobalPosition: str = "down",
     ):
         """
         Main workflow controller.
@@ -26,19 +26,19 @@ class SingleSegmentLakes:
         # ------------------ #
         # Step 1: subset lakes
         # ------------------ #
-        lake_subset = self._subset_lake(cat, lake, lake_subset_margin)
+        lake_subset = self._subset_lake(cat, lake, SubsetLakeBuffer)
 
         # ------------------ #
         # Step 2: optional restriction to provided IDs
         # ------------------ #
-        if single_segment_lakesID_position:
+        if SingleSegmentIdPosition:
 
             position_map = Utility.normalize_single_segment_lakes(
-                single_segment_lakesID_position,
-                single_segment_lakes_global_position,
+                SingleSegmentIdPosition,
+                SingleSegmentGlobalPosition,
             )
 
-            if single_segment_lakesID_restrict:
+            if SingleSegmentRestrictToIdPosition:
                 if "LakeCOMID" not in lake_subset.columns:
                     raise ValueError("LakeCOMID column is required")
 
@@ -68,10 +68,10 @@ class SingleSegmentLakes:
         lake_subset = self._filter_single_segment_lakes(
             lake_subset,
             riv,
-            force_one_lake_per_riv_seg_flag,
-            single_segment_lakesID_position,
-            single_segment_lakes_remove_first_order_flag,
-            single_segment_lakes_global_position,
+            EnforceOneLakePerSegment,
+            SingleSegmentIdPosition,
+            SingleSegmentExcludeFirstOrder,
+            SingleSegmentGlobalPosition,
         )
 
         print(
@@ -282,12 +282,12 @@ class SingleSegmentLakes:
         self,
         lake: gpd.GeoDataFrame,
         riv: gpd.GeoDataFrame,
-        force_one_lake_per_riv_seg_flag: bool = False,
-        single_segment_lakesID_position: Optional[
+        EnforceOneLakePerSegment: bool = False,
+        SingleSegmentIdPosition: Optional[
             Union[List[int], Set[int], Dict[int, str]]
         ] = None,
-        single_segment_lakes_remove_first_order_flag: bool = True,
-        single_segment_lakes_global_position: str = "down",
+        SingleSegmentExcludeFirstOrder: bool = True,
+        SingleSegmentGlobalPosition: str = "down",
     ) -> gpd.GeoDataFrame:
         """
         Final filtering based on upstream/downstream lake connectivity.
@@ -338,8 +338,8 @@ class SingleSegmentLakes:
         # Normalize position map
         # ------------------ #
         position_map = Utility.normalize_single_segment_lakes(
-            single_segment_lakesID_position,
-            single_segment_lakes_global_position,
+            SingleSegmentIdPosition,
+            SingleSegmentGlobalPosition,
         )
 
         lake["position"] = "down"
@@ -369,7 +369,7 @@ class SingleSegmentLakes:
 
             position = position_map.get(
                 lake_comid,
-                single_segment_lakes_global_position,
+                SingleSegmentGlobalPosition,
             )
 
             # if position is up and the associated COMID for riv headwater
@@ -378,7 +378,7 @@ class SingleSegmentLakes:
             if (
                 not river_row.empty
                 and river_row["headwater"].iloc[0]
-                and single_segment_lakes_remove_first_order_flag
+                and SingleSegmentExcludeFirstOrder
                 and position.lower() == "up"
             ):
                 keep.append(False)
@@ -394,7 +394,7 @@ class SingleSegmentLakes:
             # --------------------------------------------------
             # RULE 2: forced simplification
             # --------------------------------------------------
-            if force_one_lake_per_riv_seg_flag and (up or down):
+            if EnforceOneLakePerSegment and (up or down):
                 keep.append(False)
                 continue
 

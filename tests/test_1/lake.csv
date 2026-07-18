@@ -1,0 +1,5 @@
+LakeCOMID,unitarea,exorheic,endorheic,single_segment_lake,COMID,islake,non_channelized
+300,1.0,0,1,0,14,1,
+100,1.0,1,0,0,15,1,
+200,3.0,1,0,0,16,1,
+700,1.0,1,0,1,17,1,0.0
