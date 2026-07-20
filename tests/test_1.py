@@ -1,8 +1,132 @@
+
+from pathlib import Path
 import pandas as pd
+import numpy as np
 import geopandas as gpd
 from shapely.geometry import Polygon, LineString
 from shapely import affinity
 from riverlakenetwork import Utility, BurnLakes
+
+#
+def assert_dfs_equal(
+    gdf1,
+    gdf2,
+    key_col="COMID",
+    tol=1e-5,
+    max_col_name_length=None):
+    """
+    Assert two GeoDataFrames are equal (attributes only).
+
+    Parameters
+    ----------
+    gdf1, gdf2 : GeoDataFrame
+        GeoDataFrames to compare.
+    key_col : str
+        Column used for sorting.
+    tol : float
+        Numerical comparison tolerance.
+    max_col_name_length : int or None
+        If provided and smaller than the column name length,
+        truncate column names to this length before comparison.
+        Use 10 for ESRI Shapefile compatibility.
+    """
+
+    # Sort
+    df1 = gdf1.sort_values(key_col).reset_index(drop=True)
+    df2 = gdf2.sort_values(key_col).reset_index(drop=True)
+
+    # Drop geometry
+    df1 = df1.drop(columns="geometry", errors="ignore")
+    df2 = df2.drop(columns="geometry", errors="ignore")
+
+    # Handle shapefile column name limitation
+    if max_col_name_length is not None:
+        if max_col_name_length < 100:
+            df1.columns = [
+                c[:max_col_name_length] for c in df1.columns
+            ]
+            df2.columns = [
+                c[:max_col_name_length] for c in df2.columns
+            ]
+
+    # Shape check
+    assert df1.shape == df2.shape, \
+        f"Shape mismatch: {df1.shape} != {df2.shape}"
+
+    # Column check
+    assert set(df1.columns) == set(df2.columns), \
+        f"Column mismatch:\nOnly in df1: {set(df1.columns) - set(df2.columns)}\nOnly in df2: {set(df2.columns) - set(df1.columns)}"
+
+    # Align columns
+    df1 = df1[sorted(df1.columns)]
+    df2 = df2[sorted(df2.columns)]
+
+    # Convert numerics
+    for col in df1.columns:
+        try:
+            df1[col] = pd.to_numeric(df1[col])
+        except (ValueError, TypeError):
+            pass
+
+    for col in df2.columns:
+        try:
+            df2[col] = pd.to_numeric(df2[col])
+        except (ValueError, TypeError):
+            pass
+
+    # Compare columns
+    for col in df1.columns:
+        s1 = df1[col]
+        s2 = df2[col]
+
+        # Numeric comparison
+        if (
+            pd.api.types.is_numeric_dtype(s1)
+            or pd.api.types.is_numeric_dtype(s2)
+        ):
+            # Convert both to numeric (None -> NaN)
+            s1 = pd.to_numeric(s1, errors="coerce")
+            s2 = pd.to_numeric(s2, errors="coerce")
+
+            # Difference
+            diff = np.abs(s1 - s2)
+
+            # Ignore NaN differences
+            total_diff = np.nansum(diff)
+
+            if total_diff > tol:
+                idx = np.where(~np.isclose(
+                    s1,
+                    s2,
+                    atol=tol,
+                    equal_nan=True
+                ))[0][:10]
+
+                details = "\n".join(
+                    f"row {i}: {s1.iloc[i]} != {s2.iloc[i]}"
+                    for i in idx
+                )
+
+                raise AssertionError(
+                    f"Numeric mismatch in column '{col}' "
+                    f"(sum absolute difference={total_diff}):\n{details}"
+                )
+
+        # String/object comparison
+        else:
+            equal = (s1 == s2) | (s1.isna() & s2.isna())
+
+            if not np.all(equal):
+                idx = np.where(~equal)[0][:10]
+
+                details = "\n".join(
+                    f"row {i}: {s1.iloc[i]} != {s2.iloc[i]}"
+                    for i in idx
+                )
+
+                raise AssertionError(
+                    f"Mismatch in column '{col}':\n{details}"
+                )
 
 def test1():
 
@@ -71,6 +195,8 @@ def test1():
         {"lake_id": 300, "geometry": Polygon([(-2.5, -1.5), (-1.5, -1.5), (-1.5, -2.5), (-2.5,-2.5)])},
         {"lake_id": 400, "geometry": Polygon([(0.75, 3.25), (1.25, 3.25), (1.25, 2.75), (0.75, 2.75)])},
         {"lake_id": 500, "geometry": Polygon([(3.25,-0.25), (3.75,-0.25), (3.75,-0.75), (3.25,-0.75)])},
+        {"lake_id": 600, "geometry": Polygon([(-1.25,0.75), (-1.25,1.25), (-0.75,1.25), (-0.75,0.75)])},
+        {"lake_id": 700, "geometry": Polygon([(0.5, -0.25), (1.5, -1.75), (1.5, -2.75), (0.5, -1.25)])},
     ]
     lakes = gpd.GeoDataFrame(lake_data)
 
@@ -80,6 +206,8 @@ def test1():
         {"lake_id":  300, "LABEL": "L3", "X": -1.825, "Y": -2.0,  "COLOR":"k"},
         {"lake_id":  400, "LABEL": "L4", "X":  0.88,  "Y":  3.1,  "COLOR":"k"},
         {"lake_id":  500, "LABEL": "L5", "X":  3.4,   "Y": -0.5,  "COLOR":"k"},
+        {"lake_id":  600, "LABEL": "L6", "X":  -0.785,"Y":  1.0,  "COLOR":"k"},
+        {"lake_id":  700, "LABEL": "L7", "X":  +1,    "Y": -1.0,  "COLOR":"k"},
     ]
     lakes_location = pd.DataFrame(lakes_location_data)
 
@@ -87,6 +215,7 @@ def test1():
         {"lake_id":  100, "LABEL": "L1", "X": -2.1, "Y":  2.0, "COLOR":"k"},
         {"lake_id":  200, "LABEL": "L2", "X":  0.9, "Y":  1.0, "COLOR":"k"},
         {"lake_id":  300, "LABEL": "L3", "X": -2.1, "Y": -2.0, "COLOR":"white"},
+        {"lake_id":  700, "LABEL": "L7", "X":  0.8, "Y": -3.0/2.0, "COLOR":"k"},
     ]
     lakes_resolved_location = pd.DataFrame(lakes_resolved_location_data)
 
@@ -147,5 +276,18 @@ def test1():
     }
 
     # burn lakes into river network
-    bl = BurnLakes(config)
+    bl = BurnLakes(InputData = config,
+                   SingleSegmentProcessing = True)
+
+    TEST_DIR = Path(__file__).parent.parent / "tests/test_1"
+    print(TEST_DIR)
+
+    riv = pd.read_csv(TEST_DIR / "riv.csv")
+    assert_dfs_equal(riv, bl.riv)
+
+    cat = pd.read_csv(TEST_DIR / "cat.csv")
+    assert_dfs_equal(cat, bl.cat)
+
+    lake = pd.read_csv(TEST_DIR / "lake.csv")
+    assert_dfs_equal(lake, bl.lake)
 

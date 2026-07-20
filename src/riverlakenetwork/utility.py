@@ -4,6 +4,7 @@ import numpy as np
 import subprocess
 import os
 from   shapely.geometry import Point, LineString, MultiLineString
+from   shapely.errors import GEOSException
 from   scipy.spatial import cKDTree
 import yaml
 import shutil
@@ -1203,3 +1204,124 @@ class Utility:
         # ------------------ #
         else:
             raise TypeError("Input must be list, set, dict, or None")
+
+    @staticmethod
+    def RescaleLakeUnitArea(
+        cat,
+        lake,
+        cat_unitarea_col="unitarea",
+        lake_unitarea_col="unitarea"):
+
+        lake = lake.copy()
+        cat = cat.copy()
+
+        # --------------------------------------------------
+        # CRS consistency
+        # --------------------------------------------------
+        if lake.crs != cat.crs:
+            lake = lake.to_crs(cat.crs)
+
+        # --------------------------------------------------
+        # Precompute geometric area
+        # --------------------------------------------------
+        cat["_geom_area"] = cat.geometry.area
+
+        # --------------------------------------------------
+        # Build spatial index
+        # --------------------------------------------------
+        cat_sindex = cat.sindex
+
+        # --------------------------------------------------
+        # Catchment bounding box (VERY FAST FILTER)
+        # --------------------------------------------------
+        xmin, ymin, xmax, ymax = cat.total_bounds
+        cat_bbox = gpd.GeoSeries.from_bbox((xmin, ymin, xmax, ymax)).iloc[0]
+
+        # --------------------------------------------------
+        # Loop over lakes
+        # --------------------------------------------------
+        for idx, lake_row in lake.iterrows():
+
+            lake_geom = lake_row.geometry
+
+            # Skip empty/null
+            if lake_geom is None or lake_geom.is_empty:
+                continue
+
+            # --------------------------------------------------
+            # FASTEST REJECTION STEP (bbox test)
+            # --------------------------------------------------
+            try:
+                if not lake_geom.intersects(cat_bbox):
+                    continue
+            except GEOSException:
+                continue
+
+            # Fix lake geometry if invalid
+            if not lake_geom.is_valid:
+                try:
+                    lake_geom = lake_geom.buffer(0)
+                except Exception:
+                    continue
+
+            # --------------------------------------------------
+            # Spatial index query
+            # --------------------------------------------------
+            candidate_ids = list(
+                cat_sindex.intersection(lake_geom.bounds)
+            )
+
+            if not candidate_ids:
+                continue
+
+            candidates = cat.iloc[candidate_ids]
+
+            # --------------------------------------------------
+            # Robust intersection check
+            # --------------------------------------------------
+            intersect_idx = []
+
+            for cid, geom in zip(candidates.index, candidates.geometry):
+
+                if geom is None or geom.is_empty:
+                    continue
+
+                try:
+                    if not geom.is_valid:
+                        geom = geom.buffer(0)
+
+                    if geom.intersects(lake_geom):
+                        intersect_idx.append(cid)
+
+                except GEOSException:
+                    continue
+
+            if not intersect_idx:
+                continue
+
+            intersect_cat = cat.loc[intersect_idx]
+
+            # --------------------------------------------------
+            # Area scaling
+            # --------------------------------------------------
+            subbasin_actual_area = intersect_cat[cat_unitarea_col].sum()
+            subbasin_geom_area = intersect_cat["_geom_area"].sum()
+
+            if (
+                pd.isna(subbasin_actual_area)
+                or subbasin_geom_area <= 0
+            ):
+                continue
+
+            # --------------------------------------------------
+            # Update lake unit area
+            # --------------------------------------------------
+            lake_geom_area = lake_geom.area
+
+            lake.loc[idx, lake_unitarea_col] = (
+                lake_geom_area *
+                subbasin_actual_area /
+                subbasin_geom_area
+            )
+
+        return lake

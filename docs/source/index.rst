@@ -4,10 +4,15 @@ RiverLakeNetwork
 .. toctree::
    :maxdepth: 1
 
-   modules/introduction
+   introduction/introduction
 
 
 .. toctree::
    :maxdepth: 1
 
-   modules/classes
+   classes/classes
+
+.. toctree::
+   :maxdepth: 1
+
+   examples/examples
